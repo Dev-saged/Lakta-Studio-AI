@@ -1,0 +1,16 @@
+# تجاهل الفيديوهات والملفات المؤقتة
+Lakta_System/
+temp_work/
+*.mp4
+*.webm
+*.mkv
+*.m4a
+*.vtt
+*.zip
+*.png
+*.jpg
+
+# تجاهل ملفات النظام والبيئة السرية
+.env
+__pycache__/
+*.pyc
