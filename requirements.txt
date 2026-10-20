@@ -1,0 +1,11 @@
+Pillow>=10.0.0
+gradio>=4.0.0
+moviepy==1.0.3
+google-generativeai
+librosa
+webvtt-py
+yt-dlp
+numpy
+requests
+arabic-reshaper
+python-bidi
