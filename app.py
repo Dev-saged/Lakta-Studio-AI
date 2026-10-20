@@ -538,4 +538,51 @@ with gr.Blocks(theme=gr.themes.Soft()) as app:
                     trend_keyword = gr.Textbox(label="كلمة مفتاحية")
                     btn_trend = gr.Button("اصطد التريند 🚀", variant="primary")
                     
+        with gr.Column():
+            gr.Markdown("### 🔠 الهوية البصرية (Fonts & Watermark)")
+            font_uploader = gr.File(label="ارفع خطوطك هنا (TTF أو OTF)", file_count="multiple", file_types=[".ttf", ".otf"])
+            initial_fonts = get_available_fonts()
+            font_dropdown = gr.Dropdown(label="الخط المستخدم", choices=initial_fonts, value=initial_fonts[0] if initial_fonts else None, interactive=True)
+            font_uploader.upload(fn=handle_font_upload, inputs=font_uploader, outputs=font_dropdown)
+
+            custom_watermark = gr.Image(label="رفع شعار قناتك (PNG شفاف)", type="filepath")
+            watermark_pos = gr.Dropdown(label="موقع الشعار", choices=["أعلى اليمين", "أعلى اليسار", "أسفل اليمين", "أسفل اليسار"], value="أعلى اليمين")
+
+            use_frame = gr.Checkbox(label="تفعيل إطار 'لقطة' المزخرف", value=False)
+            frame_color = gr.ColorPicker(label="لون الإطار", value="#FFD700")
+            custom_frame = gr.Image(label="رفع قالب جاهز (اختياري PNG)", type="filepath")
+
+    gr.Markdown("### 📥 التحميل السريع (أخر ملف تمت معالجته)")
+    out_zip = gr.File(label="📦 تحميل جميع أجزاء المشروع (Zip)")
+
+    gr.Markdown("### 🎥 استعراض سريع لأخر جزء تم استخراجه")
+    with gr.Row():
+        out_vid_wide = gr.Video(label="يوتيوب العادي (16:9)")
+        out_vid_short = gr.Video(label="شورتس / تيك توك (9:16)")
         
+    gr.Markdown("### 🎨 أخر صور مصغرة")
+    with gr.Row():
+        out_img_wide = gr.Image(label="غلاف يوتيوب العادي")
+        out_img_short = gr.Image(label="غلاف الشورتس")
+        
+    gr.Markdown("### 📝 النصوص الجاهزة (ديناميكية لكل جزء)")
+    with gr.Row():
+        out_title = gr.Textbox(label="العنوان القوي")
+        out_desc = gr.Textbox(label="الوصف والهاشتاقات", lines=6)
+        
+    status_text = gr.Textbox(label="💻 شاشة المراقبة (Console)", interactive=False, lines=15, max_lines=30)
+
+    btn_manual.click(
+        fn=lambda u, a, n, uh, ua, cw, wp, uf, fc, cf, f: process_full_system("رابط", u, a, n, uh, ua, cw, wp, uf, fc, cf, f),
+        inputs=[manual_url, api_key_input, num_parts, use_hook, use_audio_eng, custom_watermark, watermark_pos, use_frame, frame_color, custom_frame, font_dropdown],
+        outputs=[out_vid_wide, out_vid_short, out_img_wide, out_img_short, out_title, out_desc, status_text, out_zip]
+    )
+
+    btn_trend.click(
+        fn=lambda t, a, n, uh, ua, cw, wp, uf, fc, cf, f: process_full_system("تريند", t, a, n, uh, ua, cw, wp, uf, fc, cf, f),
+        inputs=[trend_keyword, api_key_input, num_parts, use_hook, use_audio_eng, custom_watermark, watermark_pos, use_frame, frame_color, custom_frame, font_dropdown],
+        outputs=[out_vid_wide, out_vid_short, out_img_wide, out_img_short, out_title, out_desc, status_text, out_zip]
+    )
+
+if __name__ == "__main__":
+    app.queue().launch(debug=True, share=True)
