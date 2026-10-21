@@ -1,5 +1,5 @@
 // غلاف التطبيق فقط؛ البيانات والملفات دائماً من الشبكة
-const CACHE = "lakta-shell-v34.7.0";
+const CACHE = "lakta-shell-v34.8.0";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 self.addEventListener("install", e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener("activate", e => e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())));
