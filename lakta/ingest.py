@@ -90,20 +90,28 @@ def find_trend(keyword, flt, settings, env, log):
     return f"https://www.youtube.com/watch?v={best['id']}"
 
 
-def download(url, work, settings, env, log, progress):
+def download(url, work, settings, env, log, progress, note=None):
     h = int(settings.get("resolution") or 1080)
+    last = {"t": 0}
 
     def hook(d):
         if d.get("status") == "downloading":
             tot = d.get("total_bytes") or d.get("total_bytes_estimate") or 0
             if tot:
                 progress(min(0.99, d.get("downloaded_bytes", 0) / tot))
+            import time
+            if note and time.time() - last["t"] > 1.5:
+                last["t"] = time.time()
+                sp, eta = d.get("speed") or 0, d.get("eta")
+                note(f"{sp / 2**20:.1f} MB/s" + (f" · باقي {int(eta)}ث" if eta else ""))
 
     extra = {
         "format": f"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b",
         "merge_output_format": "mp4", "outtmpl": str(work / "source.%(ext)s"),
         "writesubtitles": True, "writeautomaticsub": True, "subtitleslangs": ["ar", "ar-orig"], "subtitlesformat": "vtt",
         "progress_hooks": [hook],
+        # أجزاء 10MB تتفادى خنق السرعة من يوتيوب
+        "http_chunk_size": 10 * 2**20,
     }
     info = _attempts(url, settings, env, log, extra, True)
     vids = [p for p in glob.glob(str(work / "source.*")) if p.endswith((".mp4", ".mkv", ".webm"))]

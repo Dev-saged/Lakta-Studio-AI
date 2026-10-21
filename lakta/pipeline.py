@@ -67,7 +67,7 @@ class Pipeline:
             src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
         else:
             url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
-            src = ingest.download(url, work, st, env, log, job.progress)
+            src = ingest.download(url, work, st, env, log, job.progress, job.note)
         meta = ingest.describe(src)
         dur = meta["duration"]
         job.set(title=src["title"], url=src["url"], duration=round(dur, 1))
