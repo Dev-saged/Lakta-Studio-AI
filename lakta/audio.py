@@ -65,7 +65,15 @@ def separate(wav, work, gpu, log, cancel):
         cmd = [sys.executable, "-m", "demucs", "--two-stems=vocals", "-n", "htdemucs", "-o", str(outdir), str(wav)]
         if gpu:
             cmd += ["-d", "cuda"]
-        run(cmd, cancel=cancel)
+        try:
+            run(cmd, cancel=cancel)
+        except RuntimeError as e:
+            # torchaudio الحديث يحتاج torchcodec لحفظ الصوت
+            if "torchcodec" not in str(e).lower():
+                raise
+            log("تثبيت torchcodec لـ Demucs…")
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "torchcodec"], check=True)
+            run(cmd, cancel=cancel)
         found = list(outdir.rglob("no_vocals.wav"))
         if found:
             dst = work / f"{Path(wav).stem}_bg.wav"

@@ -30,6 +30,16 @@ def peaks(wav_path, n=300):
     return [round(v / top, 3) for v in out]
 
 
+def _pcm(wav_path):
+    # تمرير الصوت كمصفوفة يتجاوز PyAV (إصداراته الحديثة لا تقبل metadata_errors)
+    import numpy as np
+    with wave.open(str(wav_path), "rb") as w:
+        if w.getframerate() != 16000 or w.getnchannels() != 1 or w.getsampwidth() != 2:
+            raise RuntimeError("صيغة الصوت غير متوقعة")
+        data = w.readframes(w.getnframes())
+    return np.frombuffer(data, dtype=np.int16).astype(np.float32) / 32768.0
+
+
 def _load(quality, gpu, log):
     from faster_whisper import WhisperModel
     name = CONFIG["whisper"].get(quality, CONFIG["whisper"]["balanced"])["gpu" if gpu else "cpu"]
@@ -44,8 +54,19 @@ def _load(quality, gpu, log):
 
 
 def whisper(wav, quality, gpu, log, cancel, progress, language="ar"):
+    audio = _pcm(wav)
+    try:
+        return _run(audio, quality, gpu, log, cancel, progress, language)
+    except Exception as e:
+        if not gpu or not any(k in str(e).lower() for k in ("cuda", "cudnn", "cublas", "gpu")):
+            raise
+        log(f"تعذّر التفريغ على GPU ({str(e)[:100]}) · إكمال على المعالج")
+        return _run(audio, quality, False, log, cancel, progress, language)
+
+
+def _run(audio, quality, gpu, log, cancel, progress, language):
     model = _load(quality, gpu, log)
-    segs, info = model.transcribe(str(wav), language=language, word_timestamps=True, vad_filter=True, beam_size=5)
+    segs, info = model.transcribe(audio, language=language, word_timestamps=True, vad_filter=True, beam_size=5)
     words, segments = [], []
     for seg in segs:
         if cancel():
