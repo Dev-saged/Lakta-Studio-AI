@@ -2,7 +2,7 @@ import json
 import shutil
 
 from config import CONFIG
-from . import audio, captions, director, ingest, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, captions, covers, director, ingest, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
@@ -160,6 +160,15 @@ class Pipeline:
                                     crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop else None,
                                     templates={f: _template(env, brand, f) or _gen_thumb(env, brand, f, font_file, work) for f in ("short", "wide")})
                 c["files"].update({k: f"{job.id}/{v.name}" for k, v in files.items()})
+            try:
+                cov = covers.make(src["path"], p["s"], p["dur_src"], out, work, c["thumb"], c.get("highlight"), n,
+                                  font_file, brand, env.assets, log)
+                for fmt_k in ("short", "wide"):
+                    if cov.get(f"thumb_{fmt_k}"):
+                        c["files"][f"thumb_{fmt_k}"] = f"{job.id}/{cov[f'thumb_{fmt_k}']}"
+                c["covers"] = {k: [f"{job.id}/{x}" for x in v] for k, v in cov.get("covers", {}).items()}
+            except Exception as e:
+                log(f"تعذّر مصمم الأغلفة ({str(e)[:120]}) · استخدام الغلاف البسيط")
             for fmt in fmts:
                 job.note(f"اللقطة {n} · {'شورتس' if fmt == 'short' else 'عريض'}")
                 W, H = render.SIZES[(fmt, 720 if res <= 720 else 1080)]
@@ -217,7 +226,7 @@ def _template(env, brand, fmt):
 
 
 def _public(clips):
-    keys = ("n", "s", "e", "title", "hook", "thumb", "score", "reason", "files", "full_title", "desc", "dur")
+    keys = ("n", "s", "e", "title", "hook", "thumb", "score", "reason", "files", "full_title", "desc", "dur", "covers")
     return [{k: c.get(k) for k in keys} for c in clips]
 
 
