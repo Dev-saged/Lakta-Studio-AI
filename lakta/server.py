@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import director, voice
+from . import director, templates, voice
 from .env import ROOT, ffprobe
 from .pipeline import deliver_again, steps_for
 
@@ -305,6 +305,8 @@ def handler(app):
                         raise ValueError("خيارات غير صالحة")
                     p = voice.preview(app.settings, eng, v, d, app.env.temp)
                     return self._json({"url": f"/cache/{p.name}"})
+                if path.startswith("/api/template/"):
+                    return self._json(self._template(path.rsplit("/", 1)[1], body))
                 if path == "/api/delete":
                     kind, name = body.get("kind"), Path(str(body.get("name", ""))).name
                     root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets,
@@ -320,6 +322,38 @@ def handler(app):
                 self._err(str(e))
             except Exception as e:
                 self._err(f"خطأ: {str(e)[:300]}", 500)
+
+        def _template(self, act, body):
+            st, env = app.settings, app.env
+            brand = st.data["brand"]
+            font = env.fonts / brand.get("font", CONFIG["fonts"]["default"])
+            if not font.exists():
+                font = env.fonts / CONFIG["fonts"]["default"]
+            if act == "design":
+                idea = str(body.get("idea", "")).strip()[:300]
+                if not idea:
+                    raise ValueError("اكتب فكرتك أولاً")
+                if not st.get("gemini_key"):
+                    raise ValueError("التصميم بالذكاء الاصطناعي يحتاج مفتاح Gemini")
+                spec = templates.design(st, idea)
+                cur = templates.tpl_conf(brand)
+                st.update({"brand": {"template": {"accent": spec["accent"], "base": spec["base"], "ink": spec["ink"],
+                                                  "mood": spec["mood"], "cta_ai": spec["cta"], "idea": idea,
+                                                  "style": cur["style"] if cur["style"] in templates.STYLES else spec["style"]}}})
+            elif act == "ornament":
+                if not st.get("gemini_key"):
+                    raise ValueError("الزخرفة تحتاج مفتاح Gemini")
+                t = templates.tpl_conf(brand)
+                templates.ornament(st, t["idea"] or t["mood"] or "elegant", t, env.assets / "ornament.png")
+                st.update({"brand": {"template": {"ornament": True}}})
+            elif act != "previews":
+                raise ValueError("إجراء غير معروف")
+            out = env.temp / "tplprev"
+            out.mkdir(parents=True, exist_ok=True)
+            names = templates.previews(env, st.data["brand"], font, out)
+            v = int(time.time() * 1000) % 10**8
+            return {"settings": st.public(), "ornament": (env.assets / "ornament.png").exists(),
+                    "previews": {k: f"/cache/tplprev/{n}?v={v}" for k, n in names.items()}}
 
         def _job_action(self, jid, act):
             job = app.store.get(jid)
