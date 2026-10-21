@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.0.2"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.1.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -20,6 +20,7 @@ CONFIG = {
     "limits": {"upload_mb": 4096, "font_mb": 20, "image_mb": 10, "music_mb": 50, "json_kb": 512},
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},
     "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
+    "trash": {"days": 7},
     "dialects": {
         "original": {"label": "لهجة المتكلم", "prompt": ""},
         "msa": {"label": "فصحى", "prompt": "العربية الفصحى المبسطة"},

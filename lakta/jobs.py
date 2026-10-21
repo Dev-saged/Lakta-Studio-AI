@@ -5,6 +5,9 @@ import shutil
 import threading
 import time
 import traceback
+from pathlib import Path
+
+from config import CONFIG
 
 from .env import Cancelled
 
@@ -12,7 +15,7 @@ STEP_LABELS = {"download": "تنزيل الفيديو", "transcribe": "تفري�
                "voice": "توليد الصوت الجديد", "separate": "فصل الصوت عن الخلفية", "render": "الإخراج والأغلفة",
                "package": "التغليف والإرسال"}
 PUBLIC = ("id", "created", "finished", "status", "title", "label", "url", "steps", "pct", "clips", "duration", "error",
-          "voice_label", "zip", "log", "opts", "seo")
+          "voice_label", "zip", "log", "opts", "seo", "deleted")
 
 
 class Store:
@@ -34,9 +37,13 @@ class Store:
         threading.Thread(target=self._saver, daemon=True).start()
 
     def _saver(self):
+        n = 0
         while True:
             time.sleep(2)
             self.save()
+            n += 1
+            if n % 900 == 1:
+                self.purge_expired()
 
     def save(self, force=False):
         with self.lock:
@@ -85,14 +92,48 @@ class Store:
             return self.version
 
     def delete(self, jid):
+        """حذف نهائي (للمهام غير العاملة)"""
         with self.lock:
             job = self.jobs.get(jid)
             if not job or job["status"] in ("running", "queued"):
                 return False
             del self.jobs[jid]
         shutil.rmtree(self.env.outputs / jid, ignore_errors=True)
+        uploads = (job.get("opts") or {}).get("source", {})
+        if uploads.get("type") == "file" and uploads.get("file_id") and not any(
+                (j.get("opts") or {}).get("source", {}).get("file_id") == uploads["file_id"] for j in self.jobs.values()):
+            (self.env.uploads / Path(uploads["file_id"]).name).unlink(missing_ok=True)
         self.touch()
         return True
+
+    # ===== سلة المهملات =====
+    def trash(self, jid):
+        with self.lock:
+            job = self.jobs.get(jid)
+            if not job:
+                return False
+            job["deleted"] = time.time()
+        self.touch()
+        return True
+
+    def restore(self, jid):
+        with self.lock:
+            job = self.jobs.get(jid)
+            if not job:
+                return False
+            job["deleted"] = None
+        self.touch()
+        return True
+
+    def purge_expired(self, days=None):
+        days = CONFIG["trash"]["days"] if days is None else days
+        limit = time.time() - days * 86400
+        with self.lock:
+            old = [j["id"] for j in self.jobs.values() if j.get("deleted") and j["deleted"] <= limit
+                   and j["status"] not in ("running", "queued")]
+        for jid in old:
+            self.delete(jid)
+        return len(old)
 
 
 class Worker:
@@ -115,9 +156,14 @@ class Worker:
             self.cancel.add(jid)
         return True
 
+    def trash(self, jid):
+        """نقل للسلة؛ العاملة تُوقف أولاً"""
+        self.stop(jid)
+        return self.store.trash(jid)
+
     def _next(self):
         with self.store.lock:
-            q = [j for j in self.store.jobs.values() if j["status"] == "queued"]
+            q = [j for j in self.store.jobs.values() if j["status"] == "queued" and not j.get("deleted")]
             return min(q, key=lambda j: j["created"])["id"] if q else None
 
     def _loop(self):
@@ -140,6 +186,8 @@ class Worker:
                 job.finish("failed", str(e)[:400])
             finally:
                 self.cancel.discard(jid)
+                if (self.store.jobs.get(jid) or {}).get("deleted"):
+                    self.store.save(force=True)
 
 
 class Job:
