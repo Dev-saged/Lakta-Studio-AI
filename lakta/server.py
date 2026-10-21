@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import director, templates, voice
+from . import director, ingest, templates, voice
 from .env import ROOT, ffprobe
 from .pipeline import deliver_again, steps_for
 
@@ -49,7 +49,7 @@ class App:
         return {"app": CONFIG["app"], "repo": CONFIG["repo"], "env": self.env.info(), "settings": self.settings.public(),
                 "fonts": sorted(p.name for p in self.env.fonts.glob("*") if p.suffix.lower() in (".ttf", ".otf")),
                 "music": sorted(p.name for p in self.env.music.glob("*") if p.suffix.lower() in UPLOADS["music"][0]),
-                "cookies": (self.env.assets / "youtube_cookies.txt").exists(),
+                "cookies": "file" if (self.env.assets / "youtube_cookies.txt").exists() else ("secret" if ingest.cookies_path(self.env) else ""),
                 "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "clip": CONFIG["clip"],
                 "version": ver, "jobs": jobs}
 
@@ -309,8 +309,10 @@ def handler(app):
                     return self._json(self._template(path.rsplit("/", 1)[1], body))
                 if path == "/api/delete":
                     kind, name = body.get("kind"), Path(str(body.get("name", ""))).name
-                    root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets,
+                    root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets, "cookies": app.env.assets,
                             "frame_short": app.env.assets, "frame_wide": app.env.assets}.get(kind)
+                    if kind == "cookies":
+                        name = "youtube_cookies.txt"
                     if not root or not name or name == CONFIG["fonts"]["default"]:
                         raise ValueError("لا يمكن الحذف")
                     (root / name).unlink(missing_ok=True)
