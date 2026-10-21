@@ -30,6 +30,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - ASS via `ass` filter with shaping=complex and Encoding=-1: only way Arabic shapes and orders correctly in libass
 - Templates drawn procedurally (true alpha); Gemini only designs spec and optional ornament
 - Uploaded PNG template beats generated template per format
+- Trash: soft delete (job.deleted), restore, purge; auto-purge after CONFIG trash.days (7) in Store saver
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
@@ -39,5 +40,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - YouTube "Sign in to confirm you're not a bot" on Kaggle: deno + client fallback + cookies; clear error with actions
 - Hardcoded Telegram token in code: secrets only
 
+- Ornament toggle disabled without key + raw 429 toast vanishing: switch always enabled, geometric fallback, sticky copyable errors, friendly() maps Gemini errors
+
 ## Open issues
-- Trash bin for jobs (soft delete + auto purge): plan pending approval
+- Proposed (awaiting approval): font library, video quality profile, smart editing (silence cuts, punch-in zoom, cold open), cover designer

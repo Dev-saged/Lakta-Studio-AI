@@ -94,7 +94,7 @@ class Pipeline:
             try:
                 clips, seo = director.pick_clips(st, segments, dur, parts, src["title"], src["description"], log)
             except Exception as e:
-                log(f"تعذّر تحليل Gemini ({str(e)[:160]}) · تقطيع تلقائي")
+                log(f"تعذّر تحليل Gemini ({director.friendly(e)}) · تقطيع تلقائي")
         if not clips:
             clips = director.fallback_clips(dur, parts, segments)
         seo = {"title": seo.get("title") or src["title"], "thumb": seo.get("thumb") or " ".join(src["title"].split()[:3]),

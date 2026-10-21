@@ -221,6 +221,10 @@ input[type=color]{width:36px;height:36px;border:0;border-radius:50%;padding:0;ba
 .bar i{display:block;height:100%;width:var(--w,0%);background:var(--accent);border-radius:2px;position:relative;overflow:hidden;transition:width .5s var(--ease)}
 .bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,oklch(1 0 0 / .45),transparent);animation:shine 1.6s linear infinite}
 @keyframes shine{from{translate:-100% 0}to{translate:100% 0}}
+.trash summary{cursor:pointer;list-style:none;min-height:36px}
+.trash summary::-webkit-details-marker{display:none}
+.icb.danger{color:var(--bad)}
+.icb.armed{background:var(--bad);color:#fff;border-color:var(--bad)}
 .guide summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font:600 var(--t-s)/1.4 var(--f-body);color:var(--accent-ink)}
 .guide ol{margin:0;padding-inline-start:20px;display:grid;gap:var(--s2);font-size:var(--t-s);line-height:1.7}
 .guide{display:grid;gap:var(--s2)}
@@ -283,6 +287,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .tpl{flex:none;border:1px solid var(--line);border-radius:4px;background:repeating-conic-gradient(var(--surface-2) 0 25%,var(--surface) 0 50%) 0 0/8px 8px}
 .tpl.on{background:var(--tp) center/cover no-repeat,var(--surface-2)}
 .tpl.short{width:27px;height:48px}.tpl.wide{width:48px;height:27px}
+.tpl-result{align-items:flex-start;line-height:1.7;padding:var(--s3);border-radius:var(--r);background:color-mix(in oklch,var(--ok) 10%,var(--surface))}
 .tpl-spec{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center}
 .tpl-sw{display:flex;align-items:center;gap:6px;font-size:var(--t-xs);color:var(--muted);cursor:pointer}
 .tpl-gallery{display:grid;grid-auto-flow:column;grid-auto-columns:30%;gap:var(--s3);overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:calc(var(--s4) * -1);padding:4px var(--s4) 8px;scrollbar-width:none}
@@ -362,6 +367,11 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .toast[hidden]{display:flex!important;opacity:0;translate:-50% 12px;pointer-events:none}
 .toast .ic{width:16px;height:16px;color:var(--ok)}
 .toast.bad .ic{color:var(--bad)}
+.toast .tbtn{display:none;width:36px;height:36px;flex:none;border:0;border-radius:50%;background:color-mix(in oklch,var(--paper) 14%,transparent);color:var(--paper);place-items:center;cursor:pointer}
+.toast .tbtn .ic{color:var(--paper)}
+.toast.sticky{border-radius:var(--r-l);align-items:flex-start;padding:12px 12px 12px 16px;width:min(calc(100% - 32px),400px);box-sizing:border-box}
+.toast.sticky span{flex:1;white-space:pre-wrap;overflow-wrap:anywhere;max-height:40dvh;overflow:auto;user-select:text;line-height:1.7;padding-top:6px}
+.toast.sticky .tbtn{display:grid}
 .sk{border-radius:var(--r);background:linear-gradient(90deg,var(--surface-2),var(--line),var(--surface-2)) 0 0/200% 100%;animation:sk 1.4s linear infinite}
 .login{display:grid;gap:var(--s4);padding-top:var(--s6)}
 .tests{display:grid;gap:4px;font:400 var(--t-xs)/1.6 var(--f-mono);direction:ltr;text-align:left}
@@ -486,6 +496,11 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <p class="sub" id="jobs-sub"></p>
       </header>
       <div id="job-detail" style="--i:1;display:grid;gap:var(--s5)"></div>
+      <details class="card trash" style="--i:3" id="trash-card" hidden>
+        <summary class="h2"><svg class="ic"><use href="#i-trash"/></svg>سلة المهملات <span class="tag" id="trash-count">٠</span><span class="sub push" id="trash-note"></span></summary>
+        <div class="list" id="trash"></div>
+        <button type="button" class="btn ghost bad sm" id="trash-empty">تفريغ السلة الآن</button>
+      </details>
       <section class="card" style="--i:2;gap:0" id="queue-card" hidden>
         <h2 class="h2">الطابور والسجل</h2>
         <div class="list" id="queue"></div>
@@ -525,6 +540,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         </div>
         <button type="button" class="btn" id="tpl-design"><svg class="ic"><use href="#i-spark"/></svg>صمّم بالذكاء الاصطناعي</button>
         <p class="note" id="tpl-key-note" hidden><svg class="ic"><use href="#i-key"/></svg>التصميم بالذكاء الاصطناعي يحتاج مفتاح Gemini · الأفكار السريعة تعمل بدونه</p>
+        <p class="note ok tpl-result" id="tpl-result" hidden></p>
         <div class="tpl-spec">
           <label class="tpl-sw"><input type="color" id="tpl-accent"><span>الأساسي</span></label>
           <label class="tpl-sw"><input type="color" id="tpl-base"><span>العمق</span></label>
@@ -553,7 +569,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <div class="seg sm" id="tpl-cta"><button type="button" data-v="default">تابع للمزيد</button><button type="button" data-v="custom">عبارتي</button><button type="button" data-v="ai">اقتراح Gemini</button></div>
           <input class="box" id="tpl-cta-custom" placeholder="مثال: الحلقة كاملة في القناة" maxlength="28" hidden>
           <p class="note" id="tpl-cta-ai" hidden></p></div>
-        <div class="row"><div><b>زخرفة بالذكاء الاصطناعي</b><small id="tpl-orn-note">نقشة خفيفة يولّدها Gemini في الحواف فقط</small></div><input type="checkbox" class="sw" id="tpl-orn" aria-label="زخرفة بالذكاء الاصطناعي"></div>
+        <div class="row"><div><b>زخرفة بالذكاء الاصطناعي</b><small id="tpl-orn-note">نقشة خفيفة في الحواف فقط · Gemini، أو هندسية بألوانك إن لم تتوفر الحصة</small></div><input type="checkbox" class="sw" id="tpl-orn" aria-label="زخرفة بالذكاء الاصطناعي"></div>
+        <button type="button" class="btn" id="tpl-apply"><svg class="ic"><use href="#i-check"/></svg>اعتماد القالب</button>
+        <p class="note ok" id="tpl-applied" hidden></p>
       </section>
       <section class="card" style="--i:2">
         <h2 class="h2"><svg class="ic"><use href="#i-type"/></svg>نمط الترجمة</h2>
@@ -709,7 +727,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
   <div class="pop-in" id="clip-body"></div>
 </div>
 
-<div class="toast" id="toast" role="status" hidden><svg class="ic"><use href="#i-check"/></svg><span></span></div>
+<div class="toast" id="toast" role="status" hidden><svg class="ic"><use href="#i-check"/></svg><span></span>
+  <button type="button" class="tbtn" id="toast-copy" aria-label="نسخ الرسالة"><svg class="ic"><use href="#i-copy"/></svg></button>
+  <button type="button" class="tbtn" id="toast-close" aria-label="إغلاق"><svg class="ic"><use href="#i-x"/></svg></button></div>
 
 <script>
 "use strict";
@@ -784,11 +804,14 @@ function listen() {
 setInterval(() => { if (booted && Date.now() - lastEvent > 20000 && !document.hidden) pullJobs(); }, 4000);
 
 // ===== التوست =====
-function toast(msg, bad = false) {
-  const t = $("#toast"); $("span", t).textContent = msg; t.classList.toggle("bad", bad);
+function toast(msg, bad = false, info = false) {
+  const t = $("#toast"); $("span", t).textContent = msg; t.classList.toggle("bad", bad); t.classList.toggle("sticky", bad || info);
   $("use", t).setAttribute("href", bad ? "#i-x" : "#i-check");
-  t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => t.hidden = true, 2600);
+  t.hidden = false; clearTimeout(toast.h);
+  if (!bad && !info) toast.h = setTimeout(() => t.hidden = true, 2600);
 }
+$("#toast-close").addEventListener("click", () => $("#toast").hidden = true);
+$("#toast-copy").addEventListener("click", () => copy($("#toast span").textContent));
 const fail = e => { toast(e.message || String(e), true); buzz([20, 40, 20]); };
 async function copy(text) {
   try { await navigator.clipboard.writeText(text); toast("نُسخ"); }
@@ -898,7 +921,7 @@ function initStudio() {
   });
 
   effect(() => {
-    const jobs = S.jobs(), j = jobs.find(x => x.status === "running") || jobs.find(x => x.status === "queued");
+    const jobs = liveJobs(), j = jobs.find(x => x.status === "running") || jobs.find(x => x.status === "queued");
     $("#live-wrap").hidden = !j;
     if (!j) return;
     const now = j.steps.find(s => s.state === "now");
@@ -975,8 +998,9 @@ async function jobDetail(id) {
     try { const r = await fetch(`/api/jobs/${id}/transcript`, { credentials: "same-origin" }); cache.words[id] = r.ok ? await r.json() : []; renderJobs(); } catch {}
   }
 }
+const liveJobs = () => S.jobs().filter(j => !j.deleted);
 function pickJob() {
-  const jobs = S.jobs(), sel = S.sel().job;
+  const jobs = liveJobs(), sel = S.sel().job;
   return jobs.find(j => j.id === sel) || jobs.find(j => j.status === "running") || jobs.find(j => j.status === "queued") || jobs[0];
 }
 const statusTag = j => ({ running: `<span class="livetag"><i></i>قيد الإنتاج</span>`, queued: `<span class="livetag wait"><i></i>في الطابور</span>`,
@@ -985,7 +1009,8 @@ const statusTag = j => ({ running: `<span class="livetag"><i></i>قيد الإن
 const ui = { dragging: false, pending: false, scrub: {}, logOpen: false };
 function renderJobs() {
   if (ui.dragging) { ui.pending = true; return; }
-  const jobs = S.jobs(), j = pickJob();
+  const jobs = liveJobs(), j = pickJob();
+  renderTrash();
   const active = jobs.filter(x => x.status === "running" || x.status === "queued").length;
   $("#badge").hidden = !active; $("#badge").textContent = ar(active);
   $("#jobs-sub").textContent = active ? `${ar(jobs.filter(x => x.status === "running").length)} تعمل · ${ar(jobs.filter(x => x.status === "queued").length)} في الطابور` : "لا شيء يعمل الآن";
@@ -1009,6 +1034,7 @@ function renderJobs() {
             ${j.status === "running" || j.status === "queued" ? `<button class="btn ghost sm bad" data-act="cancel" data-id="${j.id}"><svg class="ic"><use href="#i-x"/></svg>إيقاف</button>` : ""}
             ${j.status === "failed" || j.status === "canceled" ? `<button class="btn ghost sm" data-act="retry" data-id="${j.id}"><svg class="ic"><use href="#i-retry"/></svg>إعادة</button>` : ""}
             ${j.zip ? `<a class="btn ghost sm" href="${url(j.zip)}"><svg class="ic"><use href="#i-download"/></svg>ZIP</a>` : ""}
+            <button class="icb" data-act="delete" data-id="${j.id}" aria-label="${j.status === "running" ? "إيقاف ونقل للسلة" : "نقل لسلة المهملات"}"><svg class="ic"><use href="#i-trash"/></svg></button>
           </div>
         </div>
       </div>
@@ -1034,9 +1060,36 @@ function renderJobs() {
   $("#queue-card").hidden = !others.length;
   $("#queue").innerHTML = others.map(o => `<div class="row"><span class="ring sm ${o.status === "done" ? "done" : o.status === "failed" ? "bad" : ""}" style="--p:${o.pct}"><b>${o.status === "done" ? "✓" : ar(o.pct)}</b></span>
     <div><b>${esc(o.title)}</b><small>${esc({ running: "قيد الإنتاج", queued: "في الطابور", done: "اكتملت", failed: "فشلت", canceled: "أُلغيت" }[o.status])} · ${ago(o.created)}</small></div>
+    <button class="icb" data-act="delete" data-id="${o.id}" aria-label="نقل لسلة المهملات"><svg class="ic"><use href="#i-trash"/></svg></button>
     <button class="icb" data-pick="${o.id}" aria-label="عرض"><svg class="ic"><use href="#i-chev"/></svg></button></div>`).join("");
   if (canScrub) scrubber(j, det, words, clip);
   else if (words.length) setKara(words, clip ? clip.s : 0);
+}
+async function jobAction(el) {
+  const act = el.dataset.act, id = el.dataset.id;
+  if (act === "purge" && el.dataset.armed !== "1") {
+    el.dataset.armed = "1"; el.classList.add("armed"); el.setAttribute("aria-label", "اضغط مرة أخرى للحذف النهائي");
+    toast("اضغط مرة أخرى للحذف النهائي", false); setTimeout(() => { el.dataset.armed = ""; el.classList.remove("armed"); }, 3500); return;
+  }
+  try {
+    const r = await api(`/api/jobs/${id}/${act}`, {});
+    if (r.ids) S.sel.set({ job: r.ids[0], clip: 0 });
+    if (act === "delete" && S.sel().job === id) S.sel.set({ job: null, clip: 0 });
+    await pullJobs(); buzz(8);
+    toast(r.msg || (act === "cancel" ? "جاري الإيقاف" : "أُعيدت إلى الطابور"));
+  } catch (err) { fail(err); }
+}
+function renderTrash() {
+  const days = S.state()?.trash_days || 7, del = S.jobs().filter(j => j.deleted);
+  $("#trash-card").hidden = !del.length;
+  $("#trash-count").textContent = ar(del.length);
+  $("#trash-note").textContent = `تُفرغ تلقائياً بعد ${ar(days)} أيام`;
+  $("#trash").innerHTML = del.map(o => {
+    const left = Math.max(0, Math.ceil(days - (Date.now() / 1000 - o.deleted) / 86400));
+    return `<div class="row"><div><b>${esc(o.title)}</b><small>حُذفت ${ago(o.deleted)} · تُمحى خلال ${ar(left)} ${left === 1 ? "يوم" : "أيام"}</small></div>
+      <button class="icb" data-act="restore" data-id="${o.id}" aria-label="استعادة"><svg class="ic"><use href="#i-retry"/></svg></button>
+      <button class="icb danger" data-act="purge" data-id="${o.id}" aria-label="حذف نهائي"><svg class="ic"><use href="#i-trash"/></svg></button></div>`;
+  }).join("");
 }
 function setKara(words, t) {
   const k = $("#kara"); if (!k) return;
@@ -1077,12 +1130,16 @@ function initJobs() {
     }
     if (e.target.closest("[data-act-local=upload]")) { setForm({ src: "file" }); go("studio"); window.scrollTo({ top: 0 }); return; }
     const act = e.target.closest("[data-act]");
-    if (act) {
-      try { const r = await api(`/api/jobs/${act.dataset.id}/${act.dataset.act}`, {}); if (r.ids) S.sel.set({ job: r.ids[0], clip: 0 }); toast(act.dataset.act === "cancel" ? "جاري الإيقاف" : "أُعيدت إلى الطابور"); }
-      catch (err) { fail(err); }
-    }
+    if (act) jobAction(act);
   });
   $("#job-detail").addEventListener("toggle", e => { if (e.target.matches("details.log")) ui.logOpen = e.target.open; }, true);
+  for (const id of ["#queue", "#trash"]) $(id).addEventListener("click", e => { const a = e.target.closest("[data-act]"); if (a) { e.stopPropagation(); jobAction(a); } });
+  $("#trash-empty").addEventListener("click", async e => {
+    const b = e.currentTarget;
+    if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "اضغط مرة أخرى للتأكيد"; setTimeout(() => { b.dataset.armed = ""; b.textContent = "تفريغ السلة الآن"; }, 3500); return; }
+    try { const r = await api("/api/trash/empty", {}); await pullJobs(); toast(`حُذفت ${ar(r.count)} مهام نهائياً`); } catch (err) { fail(err); }
+    b.dataset.armed = ""; b.textContent = "تفريغ السلة الآن";
+  });
   $("#queue").addEventListener("click", e => { const p = e.target.closest("[data-pick]"); if (p) { S.sel.set({ job: p.dataset.pick, clip: 0 }); window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" }); } });
   effect(renderJobs, S.jobs, S.sel);
 }
@@ -1121,13 +1178,12 @@ function initLibrary() {
     const b = e.target.closest("[data-lib]"); if (!b) return;
     const j = S.jobs().find(x => x.id === b.dataset.id);
     if (b.dataset.lib === "copy") return copy(j.clips.map(c => `${c.full_title || c.title}\n\n${c.desc || ""}`).join("\n\n———\n\n"));
-    if (b.dataset.lib === "delete" && b.dataset.armed !== "1") { b.dataset.armed = "1"; b.innerHTML = `<svg class="ic"><use href="#i-trash"/></svg>`; b.setAttribute("aria-label", "اضغط مرة أخرى للتأكيد"); b.style.background = "var(--bad)"; b.style.color = "#fff"; toast("اضغط مرة أخرى لحذف المشروع نهائياً", true); setTimeout(() => { b.dataset.armed = ""; b.style.background = ""; b.style.color = ""; }, 3500); return; }
-    try { const r = await api(`/api/jobs/${j.id}/${b.dataset.lib}`, {}); toast(r.msg || (b.dataset.lib === "delete" ? "حُذف المشروع" : "تم")); } catch (err) { fail(err); }
+    try { const r = await api(`/api/jobs/${j.id}/${b.dataset.lib}`, {}); if (b.dataset.lib === "delete") await pullJobs(); toast(r.msg || "تم"); } catch (err) { fail(err); }
   });
   effect(renderLib, S.jobs);
 }
 function renderLib() {
-  const done = S.jobs().filter(j => j.status === "done");
+  const done = liveJobs().filter(j => j.status === "done");
   const month = Date.now() / 1000 - 30 * 86400;
   $("#k-clips").textContent = ar(done.filter(j => j.created > month).reduce((a, j) => a + j.clips.length, 0));
   $("#k-hours").textContent = ar((done.filter(j => j.created > month).reduce((a, j) => a + (j.duration || 0), 0) / 3600).toFixed(1));
@@ -1144,7 +1200,7 @@ function renderLib() {
         ${j.zip ? `<a class="btn ghost" href="${url(j.zip)}"><svg class="ic"><use href="#i-download"/></svg>ZIP</a>` : ""}
         <button type="button" class="btn ghost" data-lib="copy" data-id="${j.id}"><svg class="ic"><use href="#i-copy"/></svg>العناوين</button>
         <button type="button" class="icb" data-lib="telegram" data-id="${j.id}" aria-label="إرسال لتيليجرام"><svg class="ic"><use href="#i-send"/></svg></button>
-        <button type="button" class="icb" data-lib="delete" data-id="${j.id}" aria-label="حذف المشروع"><svg class="ic"><use href="#i-trash"/></svg></button>
+        <button type="button" class="icb" data-lib="delete" data-id="${j.id}" aria-label="نقل المشروع لسلة المهملات"><svg class="ic"><use href="#i-trash"/></svg></button>
       </div>
     </article>`).join("")}</div>`;
 }
@@ -1247,16 +1303,34 @@ function initTemplates() {
   });
   $("#tpl-design").addEventListener("click", async () => {
     const btn = $("#tpl-design"), idea = $("#tpl-idea").value.trim();
-    btn.disabled = true; card.classList.add("busy");
-    try { const r = await api("/api/template/design", { idea }); applyTpl(r); toast("صُمّمت الهوية · اختر النمط"); buzz([10, 40, 10]); }
-    catch (e) { fail(e); } finally { btn.disabled = false; card.classList.remove("busy"); }
+    if (!idea) return fail(new Error("اكتب فكرة قناتك أولاً"));
+    const label = btn.lastChild.textContent;
+    btn.disabled = true; card.classList.add("busy"); btn.lastChild.textContent = "جاري التصميم…";
+    try {
+      const r = await api("/api/template/design", { idea }); applyTpl(r);
+      const s = r.spec || {};
+      $("#tpl-result").hidden = false;
+      $("#tpl-result").innerHTML = `<svg class="ic"><use href="#i-check"/></svg><span>صُمّم قالبك${s.mood ? ` بطابع «${esc(s.mood)}»` : ""}${s.cta_ai ? ` · الدعوة المقترحة: «${esc(s.cta_ai)}»` : ""}. اختر النمط ثم اضغط «اعتماد القالب».</span>`;
+      $("#tpl-styles").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+      buzz([10, 40, 10]);
+    } catch (e) { fail(e); } finally { btn.disabled = false; btn.lastChild.textContent = label; card.classList.remove("busy"); }
   });
   $("#tpl-orn").addEventListener("change", async e => {
     if (!e.target.checked) return setTpl({ ornament: false });
     card.classList.add("busy"); $("#tpl-orn-note").textContent = "جاري توليد الزخرفة…";
-    try { const r = await api("/api/template/ornament", {}); applyTpl(r); toast("وُلّدت الزخرفة"); }
-    catch (err) { e.target.checked = false; fail(err); } finally { card.classList.remove("busy"); $("#tpl-orn-note").textContent = "نقشة خفيفة يولّدها Gemini في الحواف فقط"; }
+    try { const r = await api("/api/template/ornament", {}); applyTpl(r); r.notice ? toast(r.notice, false, true) : toast("وُلّدت الزخرفة"); }
+    catch (err) { e.target.checked = false; fail(err); } finally { card.classList.remove("busy"); $("#tpl-orn-note").textContent = "نقشة خفيفة في الحواف فقط · Gemini، أو هندسية بألوانك إن لم تتوفر الحصة"; }
   });
+  $("#tpl-apply").addEventListener("click", async () => {
+    if (T().style === "none") { $("#tpl-styles").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" }); return fail(new Error("اختر نمطاً للقالب أولاً")); }
+    try { await api("/api/settings", { brand: { template: T() } }); buzz([10, 40, 10]); toast("اعتُمد القالب"); paintApplied(); } catch (e) { fail(e); }
+  });
+  const names = { cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" };
+  function paintApplied() {
+    const t = T(), on = t.style !== "none";
+    $("#tpl-applied").hidden = !on;
+    $("#tpl-applied").innerHTML = on ? `<svg class="ic"><use href="#i-check"/></svg>القالب المعتمد: ${esc(names[t.style])} · يُطبَّق تلقائياً على كل اللقطات القادمة` : "";
+  }
   function paintPrev() {
     $$("#tpl-styles [data-v]").forEach(b => { const img = $("img", b); if (img && tplPrev[b.dataset.v]) img.src = tplPrev[b.dataset.v]; });
     if (tplPrev.wide) $("#tpl-wide img").src = tplPrev.wide;
@@ -1279,7 +1353,7 @@ function initTemplates() {
     $("#tpl-upload-note").hidden = !(b.frame_short || b.frame_wide);
     $("#tpl-design").disabled = !st.settings.gemini_key.set;
     $("#tpl-key-note").hidden = st.settings.gemini_key.set;
-    $("#tpl-orn").disabled = !st.settings.gemini_key.set && !t.ornament;
+    paintApplied();
   }, S.state);
   refresh();
 }
