@@ -31,6 +31,8 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Templates drawn procedurally (true alpha); Gemini only designs spec and optional ornament
 - Uploaded PNG template beats generated template per format
 - Trash: soft delete (job.deleted), restore, purge; auto-purge after CONFIG trash.days (7) in Store saver
+- Quality profiles in CONFIG.quality (crf/preset/cq/maxrate/enhance); premium+shorts downloads up to 4K (VP9, mkv)
+- NVENC args fall back to libx264 on failure; output tagged BT.709, GOP 60, capped bitrate
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
