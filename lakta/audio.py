@@ -22,14 +22,26 @@ def _atempo(speed):
     return chain
 
 
-def segment(src, s, dur_src, speed, out, has_audio, cancel):
-    """صوت الفيديو الأصلي للمقطع، بعد تطبيق السرعة"""
-    out_dur = dur_src / speed
+def segment(src, s, dur_src, speed, out, has_audio, cancel, edl=None):
+    """صوت الفيديو الأصلي للمقطع، بعد القص (إن وُجدت قائمة قطع) والسرعة"""
+    segs = (edl or {}).get("audio") or (edl or {}).get("segs")
+    out_dur = (sum(b - a for a, b in segs) if segs else dur_src) / speed
     if not has_audio:
         run(FF + ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{out_dur:.3f}", str(out)], cancel=cancel)
         return out
-    af = ",".join(_atempo(speed) + ["aresample=48000"])
-    run(FF + ["-ss", f"{s:.3f}", "-t", f"{dur_src:.3f}", "-i", str(src), "-vn", "-ac", "2", "-af", af, str(out)], cancel=cancel)
+    tail = ",".join(_atempo(speed) + ["aresample=48000"])
+    if segs:
+        n = len(segs)
+        fc = [f"[0:a]aformat=channel_layouts=stereo,asplit={n}" + "".join(f"[a{i}]" for i in range(n))]
+        for i, (a, b) in enumerate(segs):
+            fd = min(0.012, (b - a) / 4)
+            fc.append(f"[a{i}]atrim=start={a}:end={b},asetpts=PTS-STARTPTS,afade=t=in:d={fd:.3f},"
+                      f"afade=t=out:st={max(0, b - a - fd):.3f}:d={fd:.3f}[b{i}]")
+        fc.append("".join(f"[b{i}]" for i in range(n)) + f"concat=n={n}:v=0:a=1,{tail}[out]")
+        run(FF + ["-ss", f"{s:.3f}", "-t", f"{dur_src:.3f}", "-i", str(src), "-filter_complex", ";".join(fc),
+                  "-map", "[out]", "-ac", "2", str(out)], cancel=cancel)
+        return out
+    run(FF + ["-ss", f"{s:.3f}", "-t", f"{dur_src:.3f}", "-i", str(src), "-vn", "-ac", "2", "-af", tail, str(out)], cancel=cancel)
     return out
 
 

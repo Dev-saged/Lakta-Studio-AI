@@ -1,6 +1,7 @@
 from config import CONFIG
 from .env import encoder_args, enhance_filters, filter_path, run
 from . import reframe
+from .edit import ZOOM
 
 SIZES = {("short", 1080): (1080, 1920), ("short", 720): (720, 1280), ("wide", 1080): (1920, 1080), ("wide", 720): (1280, 720)}
 WM_POS = {"tr": ("W-w-{p}", "{p}"), "tl": ("{p}", "{p}"), "br": ("W-w-{p}", "H-h-{p}"), "bl": ("{p}", "H-h-{p}")}
@@ -12,7 +13,7 @@ def hex_color(c):
 
 
 def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fonts_dir, brand, watermark,
-         crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None):
+         crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None, edl=None):
     """template: قالب PNG مرفوع · tpl: قالب مولَّد {static, prog, cta}"""
     W, H = SIZES[(fmt, 720 if int(res) <= 720 else 1080)]
     D = f"{out_dur:.3f}"
@@ -23,15 +24,26 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
     else:
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black")
-    v += enhance_filters(quality) + ["setsar=1", f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
+    v += enhance_filters(quality) + ["setsar=1"]
+    post = [f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
     overlay_png = template or (tpl or {}).get("static")
     if brand.get("frame_on") and not overlay_png:
         t = max(8, W // 50)
         col = hex_color(brand.get("frame_color"))
-        v.append(f"drawbox=x=0:y=0:w=iw:h=ih:color={col}:t={t}")
-        v.append(f"drawbox=x={t}:y={t}:w=iw-{2 * t}:h=ih-{2 * t}:color=white:t={max(2, t // 4)}")
+        post.append(f"drawbox=x=0:y=0:w=iw:h=ih:color={col}:t={t}")
+        post.append(f"drawbox=x={t}:y={t}:w=iw-{2 * t}:h=ih-{2 * t}:color=white:t={max(2, t // 4)}")
     inputs = ["-ss", f"{s:.3f}", "-t", f"{dur_src:.3f}", "-i", str(src), "-i", str(audio_wav)]
-    idx, cur, parts = 2, "[v0]", [f"[0:v]{','.join(v)}[v0]"]
+    idx, cur = 2, "[v0]"
+    if edl and edl.get("segs"):
+        # قص وإعادة ترتيب بالمقاطع: صمت محذوف، افتتاحية مكررة، وزوم متناوب
+        n = len(edl["segs"])
+        parts = [f"[0:v]{','.join(v)},split={n}" + "".join(f"[e{i}]" for i in range(n))]
+        for i, ((a, b), z) in enumerate(zip(edl["segs"], edl["zoom"])):
+            zf = f",crop=iw/{ZOOM}:ih/{ZOOM},scale={W}:{H}:flags=lanczos,setsar=1" if z else ""
+            parts.append(f"[e{i}]trim=start={a}:end={b},setpts=PTS-STARTPTS{zf}[c{i}]")
+        parts.append("".join(f"[c{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0,{','.join(post)}[v0]")
+    else:
+        parts = [f"[0:v]{','.join(v + post)}[v0]"]
 
     def step(chain, label):
         nonlocal cur
