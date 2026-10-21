@@ -20,6 +20,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - lakta/templates.py: template generator (Gemini spec, 4 styles, ornament, CTA)
 - lakta/edit.py: EDL from word timings (silence/filler/stutter cuts, zoom subdivisions, cold open), remap words
 - lakta/covers.py: cover designer (face/sharpness frame pick, enhance, hero/split/pop layouts, highlight word)
+- lakta/fonts.py: static bold instancing with Arabic check, Google Fonts fetch (API, falls back to raw file names)
 - lakta/thumbs.py: thumbnails + posters; lakta/notify.py: Telegram; lakta/tunnel.py: cloudflared
 - web/index.html: single-file RTL UI (studio, jobs, library, brand, prefs, #test, login)
 
@@ -37,6 +38,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - NVENC args fall back to libx264 on failure; output tagged BT.709, GOP 60, capped bitrate
 - Covers: 3 variants per size as Cover_*_PartN_k.jpg; variant 1 overwrites Thumbnail_* (thumbs.make kept as fallback)
 - Smart edit only in original-audio mode: video uses split/trim/concat (zoom per segment), audio cuts only at real cuts
+- Bundled fonts are static instances named 'Lakta <Family>' (unique family for libass); downloads saved as Google-<Family>.ttf
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
@@ -49,4 +51,4 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Ornament toggle disabled without key + raw 429 toast vanishing: switch always enabled, geometric fallback, sticky copyable errors, friendly() maps Gemini errors
 
 ## Open issues
-- Proposed (awaiting approval): font library, video quality profile, smart editing (silence cuts, punch-in zoom, cold open), cover designer
+- (none) · quality, covers, smart edit, fonts delivered in 34.2–34.5
