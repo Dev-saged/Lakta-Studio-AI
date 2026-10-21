@@ -30,13 +30,30 @@ def _deps():
         except Exception:
             missing.append(pkg)
     print("⏳ تجهيز المكتبات…", flush=True)
-    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "yt-dlp"] + missing, check=False)
+    # yt-dlp يحتاج محرك JavaScript (Deno) وحزمة EJS لحل تحديات يوتيوب
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "yt-dlp[default]", "deno"] + missing, check=False)
+    _deno_path()
     importlib.invalidate_caches()
     if not shutil.which("ffmpeg"):
         if os.geteuid() == 0 and shutil.which("apt-get"):
             subprocess.run("apt-get update -qq && apt-get install -y -qq ffmpeg", shell=True, check=False)
         if not shutil.which("ffmpeg"):
             sys.exit("❌ ffmpeg غير مثبت. على VPS: sudo apt install ffmpeg")
+
+
+def _deno_path():
+    # إضافة مسار deno المثبَّت عبر pip إلى PATH إن لم يكن ظاهراً
+    if shutil.which("deno"):
+        return
+    try:
+        import deno
+        for cand in (getattr(deno, "find_deno_bin", lambda: None)(), *Path(deno.__file__).parent.rglob("deno")):
+            if cand and Path(cand).is_file():
+                os.chmod(cand, 0o755)
+                os.environ["PATH"] = str(Path(cand).parent) + os.pathsep + os.environ.get("PATH", "")
+                return
+    except Exception:
+        pass
 
 
 def _show(url, key, env_name):

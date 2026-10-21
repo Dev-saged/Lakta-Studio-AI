@@ -8,23 +8,80 @@ from .env import ffprobe
 TREND_FILTERS = {"today": "EgIIAg%3D%3D", "week": "EgIIAw%3D%3D", "podcast": "EgIYAg%3D%3D"}
 
 
-def _ydl_opts(settings, env, extra=None):
+# عملاء يوتيوب بالترتيب: الافتراضي ثم بدائل تتجاوز فحص البوت أحياناً على سيرفرات مراكز البيانات
+CLIENTS = [None, ["tv_simply", "web_safari"], ["android_vr"], ["web_embedded", "mweb"]]
+AUTH_HINTS = ("sign in to confirm", "not a bot", "confirm your age", "cookies", "login required", "http error 429")
+AUTH_ERROR = ("يوتيوب يحجب سيرفر {env} ويطلب تسجيل الدخول. الحل: ارفع ملف cookies.txt من الإعدادات ← كوكيز يوتيوب، "
+              "أو أضفه في Secrets باسم YOUTUBE_COOKIES، أو نزّل الفيديو على جهازك واستخدم «رفع ملف». [youtube-auth]")
+
+
+def cookies_path(env):
+    """ملف الكوكيز المرفوع، وإلا محتوى السر YOUTUBE_COOKIES"""
+    up = env.assets / "youtube_cookies.txt"
+    if up.exists():
+        return up
+    from .env import secret
+    val = secret("youtube_cookies")[0]
+    if val and "youtube.com" in val:
+        p = env.temp / "youtube_cookies_secret.txt"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(val if val.endswith("\n") else val + "\n", "utf-8")
+        p.chmod(0o600)
+        return p
+    return None
+
+
+def _ydl_opts(settings, env, extra=None, client=None):
     o = {"quiet": True, "no_warnings": True, "noplaylist": True, "retries": 5, "fragment_retries": 5,
          "concurrent_fragment_downloads": 4, "socket_timeout": 30}
-    cookies = env.assets / "youtube_cookies.txt"
-    if cookies.exists():
-        o["cookiefile"] = str(cookies)
+    ck = cookies_path(env)
+    if ck:
+        o["cookiefile"] = str(ck)
+    if client:
+        o["extractor_args"] = {"youtube": {"player_client": client}}
     o.update(extra or {})
     return o
 
 
-def find_trend(keyword, flt, settings, env, log):
+def _is_auth(err):
+    m = str(err).lower()
+    return any(h in m for h in AUTH_HINTS)
+
+
+def _attempts(url, settings, env, log, extra, download):
+    """يجرب العملاء بالترتيب، ثم بدون ترجمات، ويرجع رسالة واضحة عند حجب يوتيوب"""
     import yt_dlp
+    youtube = "youtu" in url
+    last = None
+    for i, client in enumerate(CLIENTS if youtube else [None]):
+        for subs in (True, False):
+            ex = dict(extra)
+            if not subs:
+                for k in ("writesubtitles", "writeautomaticsub", "subtitleslangs", "subtitlesformat"):
+                    ex.pop(k, None)
+            try:
+                with yt_dlp.YoutubeDL(_ydl_opts(settings, env, ex, client)) as y:
+                    return y.extract_info(url, download=download)
+            except Exception as e:
+                last = e
+                msg = str(e).lower()
+                if subs and "subtitle" in msg:
+                    log("تعذّر تنزيل ترجمة يوتيوب · إعادة المحاولة بدونها")
+                    continue
+                if youtube and _is_auth(e) and i + 1 < len(CLIENTS):
+                    log(f"يوتيوب طلب التحقق · تجربة عميل بديل ({i + 2}/{len(CLIENTS)})")
+                    break
+                if youtube and _is_auth(e):
+                    raise RuntimeError(AUTH_ERROR.format(env=env.name)) from e
+                raise
+    raise last
+
+
+def find_trend(keyword, flt, settings, env, log):
     url = f"https://www.youtube.com/results?search_query={quote_plus(keyword)}"
     if flt in TREND_FILTERS:
         url += f"&sp={TREND_FILTERS[flt]}"
-    with yt_dlp.YoutubeDL(_ydl_opts(settings, env, {"extract_flat": "in_playlist", "playlistend": 20})) as y:
-        info = y.extract_info(url, download=False)
+    info = _attempts(url, settings, env, log, {"extract_flat": "in_playlist", "playlistend": 20}, False)
     entries = [e for e in (info.get("entries") or []) if e and e.get("id") and (e.get("duration") or 0) >= 90]
     if not entries:
         raise RuntimeError(f"لم أجد فيديوهات مناسبة لكلمة «{keyword}»")
@@ -34,7 +91,6 @@ def find_trend(keyword, flt, settings, env, log):
 
 
 def download(url, work, settings, env, log, progress):
-    import yt_dlp
     h = int(settings.get("resolution") or 1080)
 
     def hook(d):
@@ -43,14 +99,13 @@ def download(url, work, settings, env, log, progress):
             if tot:
                 progress(min(0.99, d.get("downloaded_bytes", 0) / tot))
 
-    opts = _ydl_opts(settings, env, {
+    extra = {
         "format": f"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b",
         "merge_output_format": "mp4", "outtmpl": str(work / "source.%(ext)s"),
         "writesubtitles": True, "writeautomaticsub": True, "subtitleslangs": ["ar", "ar-orig"], "subtitlesformat": "vtt",
         "progress_hooks": [hook],
-    })
-    with yt_dlp.YoutubeDL(opts) as y:
-        info = y.extract_info(url, download=True)
+    }
+    info = _attempts(url, settings, env, log, extra, True)
     vids = [p for p in glob.glob(str(work / "source.*")) if p.endswith((".mp4", ".mkv", ".webm"))]
     if not vids:
         raise RuntimeError("فشل تنزيل الفيديو")
