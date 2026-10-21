@@ -191,6 +191,15 @@ input[type=color]{width:36px;height:36px;border:0;border-radius:50%;padding:0;ba
 .kara .on{color:oklch(.88 .17 95);scale:1.14}
 [data-cap="cobalt"] .kara .on{color:oklch(.99 0 0);background:oklch(.5 .19 262);border-radius:3px;padding:0 3px;scale:1.08}
 [data-cap="marker"] .kara .on{color:oklch(.18 .03 262);background:oklch(.92 .15 104);border-radius:2px;padding:0 3px;text-shadow:none;scale:1.06}
+[data-cap="glow"] .kara .on{color:oklch(.99 0 0);text-shadow:0 0 6px oklch(.82 .17 75),0 0 12px oklch(.82 .17 75 / .7);scale:1.1}
+[data-cap="single"] .kara span:not(.on){display:none}
+[data-cap="single"] .kara .on{font-size:1.55em;scale:1}
+.kara .kw{color:var(--kw,oklch(.78 .17 60))}
+[data-anim="pop"] .kara .on{animation:cap-pop .9s var(--spring) infinite}
+[data-anim="bounce"] .kara .on{animation:cap-bounce .9s ease-out infinite}
+@keyframes cap-pop{0%{scale:.82}18%{scale:1.2}35%,100%{scale:1.12}}
+@keyframes cap-bounce{0%{transform:scaleY(.7)}14%{transform:scaleY(1.28)}30%,100%{transform:scaleY(1.08)}}
+@media (prefers-reduced-motion:reduce){.kara .on{animation:none!important}}
 .mon-meta{display:grid;align-content:start;gap:var(--s2);min-width:0}
 .mon-meta h3{margin:0;font:600 var(--t-m)/1.4 var(--f-display);text-wrap:balance;overflow-wrap:anywhere}
 .mon-acts{display:flex;gap:var(--s2);flex-wrap:wrap}
@@ -494,6 +503,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
             <button type="button" class="chip" data-edit="silence"><svg class="ic"><use href="#i-scissors"/></svg>حذف الصمت والتأتأة</button>
             <button type="button" class="chip" data-edit="zoom"><svg class="ic"><use href="#i-face"/></svg>زوم ديناميكي</button>
             <button type="button" class="chip" data-edit="cold_open"><svg class="ic"><use href="#i-spark"/></svg>افتتاحية بالخطاف</button>
+            <button type="button" class="chip" data-edit="sfx"><svg class="ic"><use href="#i-mic"/></svg>مؤثرات صوتية</button>
           </div></div>
         <button type="button" class="sum" popovertarget="voice-pop"><svg class="ic"><use href="#i-mic"/></svg><div><b>الصوت</b><small id="voice-sum"></small></div><svg class="ic"><use href="#i-chev"/></svg></button>
         <button type="button" class="sum" data-go="brand"><svg class="ic"><use href="#i-brand"/></svg><div><b>الهوية البصرية</b><small id="brand-sum"></small></div><svg class="ic"><use href="#i-chev"/></svg></button>
@@ -598,7 +608,10 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
               <button type="button" class="chip" data-v="classic">أصفر كلاسيكي</button>
               <button type="button" class="chip" data-v="cobalt">صندوق كوبالت</button>
               <button type="button" class="chip" data-v="marker">قلم تظليل</button>
+              <button type="button" class="chip" data-v="glow">توهج</button>
+              <button type="button" class="chip" data-v="single">كلمة كبيرة</button>
             </div>
+            <div class="field"><span class="lbl">حركة الترجمة</span><div class="seg sm" id="b-anim"><button type="button" data-v="pop">نبضة</button><button type="button" data-v="bounce">قفزة</button><button type="button" data-v="none">ثابتة</button></div></div>
             <div class="field"><span class="lbl">كلمات في كل لقطة</span><div class="seg sm" id="b-words"><button type="button" data-v="2">٢</button><button type="button" data-v="3">٣</button><button type="button" data-v="4">٤</button><button type="button" data-v="5">٥</button></div></div>
           </div>
         </div>
@@ -912,7 +925,7 @@ function initStudio() {
     const f = F(); if (!f) return;
     paintSrc(); paintFilter(); paintParts();
     $$("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== f.src);
-    $$("[data-edit]").forEach(b => { b.setAttribute("aria-pressed", String(!!f.edit[b.dataset.edit])); b.disabled = f.audio.mode !== "original"; });
+    $$("[data-edit]").forEach(b => { b.setAttribute("aria-pressed", String(!!f.edit[b.dataset.edit])); b.disabled = f.audio.mode !== "original" && b.dataset.edit !== "sfx"; });
     $$("[data-opt]").forEach(b => { const k = b.dataset.opt; b.setAttribute("aria-pressed", String(k === "short" || k === "wide" ? !!f.formats[k] : !!f[k])); });
     if ($("#f-links").value !== f.links) $("#f-links").value = f.links;
     if ($("#f-kw").value !== f.keyword) $("#f-kw").value = f.keyword;
@@ -1259,6 +1272,7 @@ function initBrand() {
   const B = () => S.state().settings.brand;
   const ps = bindGroup("#b-style", () => B().caption_style, v => setBrand({ caption_style: v }));
   const pw = bindGroup("#b-words", () => B().words, v => setBrand({ words: +v }));
+  const pa = bindGroup("#b-anim", () => B().caption_anim || "pop", v => setBrand({ caption_anim: v }));
   const pc = bindGroup("#b-colors", () => B().frame_color.toUpperCase(), v => setBrand({ frame_color: v }));
   const pp = bindGroup("#b-pos", () => B().watermark_pos, v => setBrand({ watermark_pos: v }));
   $("#b-frame").addEventListener("change", e => setBrand({ frame_on: e.target.checked }));
@@ -1289,16 +1303,18 @@ function initBrand() {
   $("#wm-del").addEventListener("click", async () => { try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "watermark", name: B().watermark })) }); setBrand({ watermark: "" }); } catch (e) { fail(e); } });
   effect(() => {
     const st = S.state(); if (!st) return; const b = st.settings.brand;
-    ps(); pw(); pc(); pp();
+    ps(); pw(); pc(); pp(); pa();
     $("#b-frame").checked = b.frame_on;
     $("#b-colors").hidden = !b.frame_on;
     $("#b-color-custom").value = /^#[0-9a-f]{6}$/i.test(b.frame_color) ? b.frame_color : "#E8402A";
     $("#cap-prev").dataset.cap = b.caption_style;
+    $("#cap-prev").dataset.anim = b.caption_anim || "pop";
+    $("#cap-prev").style.setProperty("--kw", b.template.accent || "#FF9F1C");
     const fam = fontFamily(b.font);
     $("#cap-prev").style.setProperty("--cap-font", fam); $("#thumb-prev").style.setProperty("--cap-font", fam);
     $("#thumb-prev").style.setProperty("--fc", b.frame_color); $("#thumb-prev").classList.toggle("noframe", !b.frame_on);
     const sample = "هل تعرف لماذا يفشل أغلبنا في البداية".split(" ").slice(0, b.words);
-    $("#brand-kara").innerHTML = sample.map((w, i) => `<span${i === 1 ? ' class="on"' : ""}>${esc(w)}</span>`).join(" ");
+    $("#brand-kara").innerHTML = sample.map((w, i) => `<span${i === 1 ? ' class="on"' : i === 3 ? ' class="kw"' : ""}>${esc(w)}</span>`).join(" ");
     $("#b-fonts").innerHTML = st.fonts.map(f => `<button type="button" class="fontopt" data-font="${esc(f)}" aria-pressed="${f === b.font}"><b style="font-family:${fontFamily(f).replace(/"/g, "'")}">لقطة حصرية</b><small>${esc(fontLabel(f))}</small>${f.startsWith("Lakta") ? "" : `<span class="icb" role="button" tabindex="0" data-del-font="${esc(f)}" aria-label="حذف الخط" style="width:36px;height:36px"><svg class="ic"><use href="#i-trash"/></svg></span>`}</button>`).join("");
     $("#wm-prev").innerHTML = b.watermark ? `<img src="/assets/${encodeURIComponent(b.watermark)}?v=${Date.now() % 1e5}" alt="الشعار">` : `<span class="sub">بدون شعار</span>`;
     $("#wm-del").hidden = !b.watermark;
@@ -1309,7 +1325,7 @@ function initBrand() {
       t.style.setProperty("--tp", b[k] ? `url('/assets/${encodeURIComponent(b[k])}?v=${Date.now() % 1e5}')` : "none");
       $(`[data-del-tpl="${k}"]`, row).hidden = !b[k];
     }
-    $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل" }[b.caption_style], b.template.style !== "none" ? "قالب " + ({ cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" })[b.template.style] : b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark ? "علامة مائية" : "بدون شعار"].join(" · ");
+    $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل", glow: "ترجمة متوهجة", single: "ترجمة كلمة كبيرة" }[b.caption_style], b.template.style !== "none" ? "قالب " + ({ cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" })[b.template.style] : b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark ? "علامة مائية" : "بدون شعار"].join(" · ");
   }, S.state);
 }
 

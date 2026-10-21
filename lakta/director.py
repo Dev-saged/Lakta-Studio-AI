@@ -94,6 +94,7 @@ CLIP_SCHEMA = {
             "start": {"type": "NUMBER"}, "end": {"type": "NUMBER"}, "title": {"type": "STRING"},
             "hook": {"type": "STRING"}, "thumb": {"type": "STRING"}, "highlight": {"type": "STRING"},
             "open_start": {"type": "NUMBER"}, "open_end": {"type": "NUMBER"},
+            "keywords": {"type": "ARRAY", "items": {"type": "STRING"}},
             "score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
             "required": ["start", "end", "title", "hook", "thumb", "score"]}},
     },
@@ -126,6 +127,7 @@ def pick_clips(settings, transcript_segments, duration, parts, title, descriptio
    الأفضلية: لحظة صادمة، معلومة مفاجئة، قصة قصيرة، رأي قوي، أو سؤال يثير الفضول في أول 3 ثوانٍ.
 2) لكل لقطة: عنوان جذاب (أقل من 70 حرفاً)، وخطاف (hook) من 3-5 كلمات سؤال مستفز أو معلومة صادمة، ونص غلاف من 2-4 كلمات قوية، وhighlight: الكلمة الأقوى من نص الغلاف (تُكتب كما هي) لتُلوَّن، ودرجة فيروسية 0-100، وسبب الاختيار.
    وopen_start/open_end: أقوى جملة صادمة داخل اللقطة (2-5 ثوانٍ، ليست في بدايتها) لتُعرض كافتتاحية قبل اللقطة.
+   وkeywords: من 3 إلى 5 كلمات مفردة مؤثرة منطوقة داخل اللقطة (تُنسخ حرفياً كما في التفريغ) لتُلوَّن في الترجمة.
 3) SEO للفيديو كاملاً: عنوان قوي، نص غلاف (3 كلمات)، وصف جذاب 2-3 أسطر، و8 هاشتاقات عربية بدون #.
 ممنوع الإيموجي والرموز مثل ** في كل النصوص. الأزمنة بالثواني وضمن 0 إلى {duration:.0f}."""
     data = ask_json(settings, prompt, CLIP_SCHEMA)
@@ -168,6 +170,7 @@ def validate(raw, segments, duration, parts):
             op = None
         out.append({"s": round(s, 2), "e": round(e, 2), "open": op, "title": _clean(r.get("title", "")), "hook": _clean(r.get("hook", "")),
                     "thumb": _clean(r.get("thumb", "")), "highlight": _clean(r.get("highlight", "")),
+                    "keywords": [_clean(k) for k in (r.get("keywords") or []) if isinstance(k, str) and _clean(k)][:5],
                     "score": max(0, min(100, int(r.get("score") or 0))),
                     "reason": _clean(r.get("reason", ""))})
         if len(out) == parts:
