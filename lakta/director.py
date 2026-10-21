@@ -92,7 +92,8 @@ CLIP_SCHEMA = {
             "hashtags": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["title", "thumb", "description", "hashtags"]},
         "clips": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
             "start": {"type": "NUMBER"}, "end": {"type": "NUMBER"}, "title": {"type": "STRING"},
-            "hook": {"type": "STRING"}, "thumb": {"type": "STRING"}, "score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
+            "hook": {"type": "STRING"}, "thumb": {"type": "STRING"}, "highlight": {"type": "STRING"},
+            "score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
             "required": ["start", "end", "title", "hook", "thumb", "score"]}},
     },
     "required": ["seo", "clips"],
@@ -122,7 +123,7 @@ def pick_clips(settings, transcript_segments, duration, parts, title, descriptio
 المطلوب:
 1) اختر أقوى {parts} لقطات منفصلة غير متداخلة. كل لقطة {c['target']} ثانية، تبدأ ببداية جملة وتنتهي بنهاية فكرة مكتملة، وتصلح للمشاهدة منفردة دون سياق.
    الأفضلية: لحظة صادمة، معلومة مفاجئة، قصة قصيرة، رأي قوي، أو سؤال يثير الفضول في أول 3 ثوانٍ.
-2) لكل لقطة: عنوان جذاب (أقل من 70 حرفاً)، وخطاف (hook) من 3-5 كلمات سؤال مستفز أو معلومة صادمة، ونص غلاف من 2-3 كلمات، ودرجة فيروسية 0-100، وسبب الاختيار.
+2) لكل لقطة: عنوان جذاب (أقل من 70 حرفاً)، وخطاف (hook) من 3-5 كلمات سؤال مستفز أو معلومة صادمة، ونص غلاف من 2-4 كلمات قوية، وhighlight: الكلمة الأقوى من نص الغلاف (تُكتب كما هي) لتُلوَّن، ودرجة فيروسية 0-100، وسبب الاختيار.
 3) SEO للفيديو كاملاً: عنوان قوي، نص غلاف (3 كلمات)، وصف جذاب 2-3 أسطر، و8 هاشتاقات عربية بدون #.
 ممنوع الإيموجي والرموز مثل ** في كل النصوص. الأزمنة بالثواني وضمن 0 إلى {duration:.0f}."""
     data = ask_json(settings, prompt, CLIP_SCHEMA)
@@ -159,7 +160,8 @@ def validate(raw, segments, duration, parts):
         if e - s < 8:
             continue
         out.append({"s": round(s, 2), "e": round(e, 2), "title": _clean(r.get("title", "")), "hook": _clean(r.get("hook", "")),
-                    "thumb": _clean(r.get("thumb", "")), "score": max(0, min(100, int(r.get("score") or 0))),
+                    "thumb": _clean(r.get("thumb", "")), "highlight": _clean(r.get("highlight", "")),
+                    "score": max(0, min(100, int(r.get("score") or 0))),
                     "reason": _clean(r.get("reason", ""))})
         if len(out) == parts:
             break
