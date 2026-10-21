@@ -47,6 +47,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Jobs not appearing until refresh (duplicates created): SSE without length/chunking buffered by tunnel → chunked SSE, polling fallback, refresh after submit, duplicate guard
 - YouTube "Sign in to confirm you're not a bot" on Kaggle: deno + client fallback + cookies; clear error with actions
 - Hardcoded Telegram token in code: secrets only
+- Telegram sent loose videos when zip >50MB, zip named by job id: zip named by project title; split into standalone zips ≤49MB, parts kept together
 
 - Ornament toggle disabled without key + raw 429 toast vanishing: switch always enabled, geometric fallback, sticky copyable errors, friendly() maps Gemini errors
 
