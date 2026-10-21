@@ -1,3 +1,84 @@
+===== alexandria =====
+Copyright 2022 The Alexandria Project Authors (https://github.com/Gue3bara/Alexandria)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== cairo =====
+Copyright 2009 The Cairo Project Authors (https://github.com/Gue3bara/Cairo)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== lalezar =====
+Copyright 2015 The Lalezar Project Authors (https://github.com/BornaIz/Lalezar)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== rakkas =====
+Copyright 2016 Zeynep Akay
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== reemkufi =====
+Copyright 2015-2022 The Reem Kufi Project Authors (https://github.com/aliftype/reem-kufi), with Reserved Font Name "Josefin Sans".
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== elmessiri =====
+Copyright 2015 The El Messiri Project Authors (https://github.com/Gue3bara/El-Messiri)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== changa =====
+Copyright 2018 The Changa Project Authors (https://github.com/googlefonts/changa-vf)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== marhey =====
+Copyright 2022 The Marhey Project Authors (https://github.com/namelatype/Marhey)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== kufam =====
+Copyright 2019 The Kufam Project Authors (https://github.com/originaltype/kufam)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== tajawal =====
+Copyright 2018 Boutros International. (http://www.boutrosfonts.com)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== lemonada =====
+Copyright 2011 The Lemonada Project Authors (https://github.com/Gue3bara/Lemonada)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== baloobhaijaan2 =====
+﻿Copyright 2019 The Baloo 2 Project Authors (https://github.com/EkType/Baloo2)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== arefruqaa =====
+Copyright 2015-2020 The Aref Ruqaa Project Authors (https://github.com/alif-type/aref-ruqaa), with Reserved Font Name EURM10.
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== almarai =====
+Copyright 2019 The Almarai Project Authors (https://github.com/JuergenWillrodt/Almarai)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== blaka =====
+Copyright 2019 The Blaka Project Authors (https://github.com/Gue3bara/Blaka)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== mada =====
+Copyright 2015-2022 The Mada Project Authors (https://github.com/aliftype/mada), with Reserved Font Name "Source".
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+
+===== SIL Open Font License 1.1 (full text) =====
 Copyright 2009 The Cairo Project Authors (https://github.com/Gue3bara/Cairo)
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
