@@ -67,7 +67,9 @@ class Pipeline:
             src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
         else:
             url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
-            src = ingest.download(url, work, st, env, log, job.progress, job.note)
+            # «فخم» مع الشورتس: تنزيل حتى 4K ليبقى القص العمودي حاداً
+            dl_h = 2160 if st.get("quality") == "premium" and opts["formats"].get("short") else None
+            src = ingest.download(url, work, st, env, log, job.progress, job.note, dl_h)
         meta = ingest.describe(src)
         dur = meta["duration"]
         job.set(title=src["title"], url=src["url"], duration=round(dur, 1))
@@ -168,7 +170,7 @@ class Pipeline:
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
                             crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
-                            progress=lambda x, b=base: job.progress((b + x) / total))
+                            progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"))
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)

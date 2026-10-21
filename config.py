@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.1.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.2.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -21,6 +21,11 @@ CONFIG = {
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},
     "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
     "trash": {"days": 7},
+    "quality": {
+        "compact": {"label": "مضغوط", "crf": 23, "preset": "medium", "cq": 27, "maxrate": "5M", "enhance": False},
+        "balanced": {"label": "متوازن", "crf": 20, "preset": "medium", "cq": 24, "maxrate": "9M", "enhance": True},
+        "premium": {"label": "فخم", "crf": 18, "preset": "slow", "cq": 21, "maxrate": "14M", "enhance": True},
+    },
     "dialects": {
         "original": {"label": "لهجة المتكلم", "prompt": ""},
         "msa": {"label": "فصحى", "prompt": "العربية الفصحى المبسطة"},
@@ -42,7 +47,7 @@ CONFIG = {
     "defaults": {
         "gemini_key": "", "text_model": "", "tts_model": "",
         "telegram_token": "", "telegram_chat": "", "telegram_zip": True,
-        "whisper": "balanced", "resolution": 1080, "speed": 1.0,
+        "whisper": "balanced", "resolution": 1080, "speed": 1.0, "quality": "balanced",
         "brand": {
             "caption_style": "classic", "words": 4, "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",
