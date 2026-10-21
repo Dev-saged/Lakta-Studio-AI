@@ -37,11 +37,18 @@ mimetypes.add_type("font/otf", ".otf")
 class App:
     def __init__(self, env, settings, store, worker):
         self.env, self.settings, self.store, self.worker = env, settings, store, worker
+        # كلمة مرور ثابتة من Secrets إن وُجدت، وإلا رمز أرقام سهل الكتابة يبقى ثابتاً بين التشغيلات
+        from .env import secret
+        own = (secret("lakta_password")[0] or "").strip()
         kf = env.base / ".access_key"
-        if not kf.exists():
-            kf.write_text(secrets.token_urlsafe(18))
-            kf.chmod(0o600)
-        self.key = kf.read_text().strip()
+        if not own:
+            old = kf.read_text().strip() if kf.exists() else ""
+            if not re.fullmatch(r"\d{4}-\d{4}", old):
+                kf.write_text(f"{secrets.randbelow(10**4):04d}-{secrets.randbelow(10**4):04d}")
+                kf.chmod(0o600)
+        self.key = own or kf.read_text().strip()
+        self.token = norm_key(self.key)
+        self.fails = {}
 
     # ===== الحالة =====
     def state(self):
@@ -114,6 +121,12 @@ def app_jobs(store):
         return [dict(j) for j in store.jobs.values()]
 
 
+def norm_key(k):
+    """مطابقة متسامحة: تجاهل المسافات والشرطات وحالة الأحرف والأرقام العربية"""
+    k = str(k).translate(str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789"))
+    return re.sub(r"[\s\-_]", "", k).lower()
+
+
 def _short_url(u):
     p = urllib.parse.urlparse(u)
     q = urllib.parse.parse_qs(p.query).get("v", [""])[0]
@@ -151,11 +164,11 @@ def handler(app):
         def _authed(self):
             c = self.headers.get("Cookie", "")
             m = re.search(r"(?:^|;\s*)lakta_k=([A-Za-z0-9_\-]+)", c)
-            return bool(m and hmac.compare_digest(m.group(1), app.key))
+            return bool(m and hmac.compare_digest(m.group(1), app.token))
 
         def _cookie(self):
             sec = "; Secure" if self.headers.get("X-Forwarded-Proto") == "https" else ""
-            return f"lakta_k={app.key}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000{sec}"
+            return f"lakta_k={app.token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000{sec}"
 
         def _body(self, limit_kb=None):
             n = int(self.headers.get("Content-Length") or 0)
@@ -221,7 +234,7 @@ def handler(app):
             try:
                 if path == "/":
                     k = q.get("k", [""])[0]
-                    if k and hmac.compare_digest(k, app.key):
+                    if k and hmac.compare_digest(norm_key(k).encode(), app.token.encode()):
                         return self._headers(302, "text/plain", 0, {"Location": "/", "Set-Cookie": self._cookie()})
                     b = (WEB / "index.html").read_bytes()
                     return self._headers(200, "text/html; charset=utf-8", len(b), {"Cache-Control": "no-cache", "Content-Security-Policy": CSP}) or self.wfile.write(b)
@@ -287,10 +300,17 @@ def handler(app):
             path, q = u.path, urllib.parse.parse_qs(u.query)
             try:
                 if path == "/api/login":
-                    k = str(self._body().get("key", ""))
-                    if not hmac.compare_digest(k, app.key):
+                    ip = self.headers.get("CF-Connecting-IP") or self.client_address[0]
+                    n, until = app.fails.get(ip, (0, 0))
+                    if time.time() < until:
+                        return self._err("محاولات كثيرة · انتظر 10 دقائق ثم أعد المحاولة", 429)
+                    k = norm_key(self._body().get("key", ""))
+                    if not hmac.compare_digest(k.encode(), app.token.encode()):
                         time.sleep(1)
-                        return self._err("المفتاح غير صحيح", 403)
+                        n += 1
+                        app.fails[ip] = (0, time.time() + 600) if n >= 10 else (n, 0)
+                        return self._err("رمز الدخول غير صحيح · انسخه من خلية التشغيل كما هو", 403)
+                    app.fails.pop(ip, None)
                     return self._json({"ok": True}, extra={"Set-Cookie": self._cookie()})
                 if not self._authed():
                     return self._err("غير مصرّح", 401)
