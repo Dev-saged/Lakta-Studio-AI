@@ -44,6 +44,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Look: CONFIG.grades ffmpeg chains + optional grain; voice cleanup chains in audio.mix (original vs TTS); short_fill = blurred background
 - Motion: brand.caption_anim (pop|bounce|none) + styles glow/single; director returns clip keywords → colored in captions (_norm tolerant match)
 - FX: pipeline._fx → flash at cold-open junction (render fx) + synthetic SFX (audio.add_sfx, whoosh/pop cached in assets); job edit.sfx
+- README media in docs/media (cover, icon, live UI screenshots from a demo run, section icons); regenerate screenshots after UI changes
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
