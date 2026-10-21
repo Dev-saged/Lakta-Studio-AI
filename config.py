@@ -42,6 +42,7 @@ CONFIG = {
         "brand": {
             "caption_style": "classic", "words": 4, "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",
+            "frame_short": "", "frame_wide": "",
         },
         "job": {
             "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False,

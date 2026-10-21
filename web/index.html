@@ -277,6 +277,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .fontopt[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in oklch,var(--accent) 8%,transparent)}
 .fontopt b{flex:1;font-size:var(--t-l);font-weight:700}
 .fontopt small{color:var(--muted);font-size:var(--t-xs);direction:ltr}
+.tpl{flex:none;border:1px solid var(--line);border-radius:4px;background:repeating-conic-gradient(var(--surface-2) 0 25%,var(--surface) 0 50%) 0 0/8px 8px}
+.tpl.on{background:var(--tp) center/cover no-repeat,var(--surface-2)}
+.tpl.short{width:27px;height:48px}.tpl.wide{width:48px;height:27px}
 .wmrow{display:flex;gap:var(--s3);align-items:start;flex-wrap:wrap}
 .wm{width:112px;flex:none;aspect-ratio:16/10;border:1px solid var(--line);border-radius:var(--r);display:grid;place-items:center;background:repeating-conic-gradient(var(--surface-2) 0 25%,var(--surface) 0 50%) 0 0/12px 12px;overflow:hidden}
 .wm img{max-width:80%;max-height:80%;object-fit:contain}
@@ -519,6 +522,15 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" data-v="#22B573" style="--c:#22B573" aria-label="أخضر"></button>
           <button type="button" data-v="#FFFFFF" style="--c:#FFFFFF" aria-label="أبيض"></button>
           <input type="color" id="b-color-custom" aria-label="لون مخصص">
+        </div>
+        <span class="lbl">قالب جاهز PNG (اختياري) · يحل محل الإطار المرسوم</span>
+        <div class="list" id="b-templates">
+          <div class="row" data-tpl="frame_short"><span class="tpl short"></span><div><b>قالب الشورتس</b><small>PNG شفاف · 1080×1920</small></div>
+            <label class="icb" for="up-frame_short" aria-label="رفع قالب الشورتس"><svg class="ic"><use href="#i-upload"/></svg><input type="file" id="up-frame_short" accept=".png" hidden></label>
+            <button type="button" class="icb" data-del-tpl="frame_short" aria-label="إزالة قالب الشورتس" hidden><svg class="ic"><use href="#i-trash"/></svg></button></div>
+          <div class="row" data-tpl="frame_wide"><span class="tpl wide"></span><div><b>قالب العريض</b><small>PNG شفاف · 1920×1080</small></div>
+            <label class="icb" for="up-frame_wide" aria-label="رفع قالب العريض"><svg class="ic"><use href="#i-upload"/></svg><input type="file" id="up-frame_wide" accept=".png" hidden></label>
+            <button type="button" class="icb" data-del-tpl="frame_wide" aria-label="إزالة قالب العريض" hidden><svg class="ic"><use href="#i-trash"/></svg></button></div>
         </div>
       </section>
       <section class="card" style="--i:3">
@@ -1086,6 +1098,11 @@ function initBrand() {
     try { const r = await upload(kind, f); S.state.set({ ...S.state(), ...r.state }); toast(msg); } catch (err) { fail(err); }
     e.target.value = "";
   });
+  up("#up-frame_short", "frame_short", "رُفع قالب الشورتس"); up("#up-frame_wide", "frame_wide", "رُفع قالب العريض");
+  $("#b-templates").addEventListener("click", async e => {
+    const b = e.target.closest("[data-del-tpl]"); if (!b) return;
+    try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: b.dataset.delTpl, name: B()[b.dataset.delTpl] })) }); toast("أُزيل القالب"); } catch (err) { fail(err); }
+  });
   up("#up-font", "font", "أُضيف الخط"); up("#up-wm", "watermark", "رُفع الشعار"); up("#up-music", "music", "أُضيف المقطع"); up("#up-cookies", "cookies", "رُفع ملف الكوكيز");
   $("#wm-del").addEventListener("click", async () => { try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "watermark", name: B().watermark })) }); setBrand({ watermark: "" }); } catch (e) { fail(e); } });
   effect(() => {
@@ -1103,6 +1120,12 @@ function initBrand() {
     $("#b-fonts").innerHTML = st.fonts.map(f => `<button type="button" class="fontopt" data-font="${esc(f)}" aria-pressed="${f === b.font}"><b style="font-family:${fontFamily(f).replace(/"/g, "'")}">لقطة حصرية</b><small>${esc(f.replace(/\.(ttf|otf)$/i, ""))}</small>${f.startsWith("Lakta") ? "" : `<span class="icb" role="button" tabindex="0" data-del-font="${esc(f)}" aria-label="حذف الخط" style="width:36px;height:36px"><svg class="ic"><use href="#i-trash"/></svg></span>`}</button>`).join("");
     $("#wm-prev").innerHTML = b.watermark ? `<img src="/assets/${encodeURIComponent(b.watermark)}?v=${Date.now() % 1e5}" alt="الشعار">` : `<span class="sub">بدون شعار</span>`;
     $("#wm-del").hidden = !b.watermark;
+    for (const k of ["frame_short", "frame_wide"]) {
+      const row = $(`[data-tpl="${k}"]`);
+      const t = $(".tpl", row); t.classList.toggle("on", !!b[k]);
+      t.style.setProperty("--tp", b[k] ? `url('/assets/${encodeURIComponent(b[k])}?v=${Date.now() % 1e5}')` : "none");
+      $(`[data-del-tpl="${k}"]`, row).hidden = !b[k];
+    }
     $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل" }[b.caption_style], b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark ? "علامة مائية" : "بدون شعار"].join(" · ");
   }, S.state);
 }
