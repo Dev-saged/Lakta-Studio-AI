@@ -31,6 +31,14 @@ def chunks(words, per, max_gap=0.6):
     return out
 
 
+def _hook_top(brand, short):
+    # إزاحة الخطاف تحت الشريط العلوي للقالب
+    style = (brand.get("template") or {}).get("style")
+    if style == "bar" and not brand.get("frame_short" if short else "frame_wide"):
+        return 0.19 if short else 0.26
+    return 0.14 if short else 0.08
+
+
 def build(path, words, dur, W, H, brand, font_family, hook=None):
     """ملف ASS: ترجمة كاريوكي كلمة بكلمة + خطاف علوي"""
     short = H > W
@@ -46,7 +54,7 @@ def build(path, words, dur, W, H, brand, font_family, hook=None):
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, "
         "StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         f"Style: Cap,{font_family},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},2,{W // 12},{W // 12},{margin_v},-1",
-        f"Style: Hook,{font_family},{hook_size},&H0066FF00,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},8,{W // 12},{W // 12},{int(H * (0.14 if short else 0.08))},-1",
+        f"Style: Hook,{font_family},{hook_size},&H0066FF00,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},8,{W // 12},{W // 12},{int(H * _hook_top(brand, short))},-1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     if hook:

@@ -2,7 +2,7 @@ import json
 import shutil
 
 from config import CONFIG
-from . import audio, captions, director, ingest, reframe, render, thumbs, transcribe, voice
+from . import audio, captions, director, ingest, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
@@ -155,7 +155,8 @@ class Pipeline:
             still = thumbs.best_frame(src["path"], p["s"], p["dur_src"], work, i)
             if still:
                 files = thumbs.make(still, out, c["thumb"], n, font_file, brand,
-                                    crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop else None)
+                                    crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop else None,
+                                    templates={f: _template(env, brand, f) or _gen_thumb(env, brand, f, font_file, work) for f in ("short", "wide")})
                 c["files"].update({k: f"{job.id}/{v.name}" for k, v in files.items()})
             for fmt in fmts:
                 job.note(f"اللقطة {n} · {'شورتس' if fmt == 'short' else 'عريض'}")
@@ -165,7 +166,8 @@ class Pipeline:
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
-                            crop=crop if fmt == "short" else None, work=work, cancel=cancel,
+                            crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
+                            tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
                             progress=lambda x, b=base: job.progress((b + x) / total))
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
@@ -192,6 +194,24 @@ class Pipeline:
             except Exception as e:
                 log(f"تعذّر الإرسال لتيليجرام: {str(e)[:160]}")
         log("اكتمل الإنتاج")
+
+
+def _gen_thumb(env, brand, fmt, font_file, work):
+    # طبقة القالب المولّد للأغلفة (بدون شارة الجزء لأن الغلاف يكتبها بخط كبير)
+    t = templates.tpl_conf(brand)
+    if t["style"] not in templates.STYLES:
+        return None
+    W, H = (1080, 1920) if fmt == "short" else (1920, 1080)
+    img, _ = templates.static(t["style"], W, H, {**t, "show_prog": False}, font_file, None)
+    p = work / f"tpl_thumb_{fmt}.png"
+    img.save(p)
+    return p
+
+
+def _template(env, brand, fmt):
+    name = brand.get(f"frame_{fmt}")
+    p = env.assets / name if name else None
+    return p if p and p.exists() else None
 
 
 def _public(clips):
