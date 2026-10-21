@@ -16,7 +16,7 @@ def _fake_transcript(*a, **k):
     for i in range(60):
         w = WORDS[i % len(WORDS)]
         words.append({"w": w, "s": round(t, 2), "e": round(t + 0.45, 2)})
-        t += 0.55 + (0.5 if i % 9 == 8 else 0)
+        t += 0.55 + (1.2 if i % 9 == 8 else 0)
     segs = transcribe.regroup(words)
     return {"words": words, "segments": segs, "source": "whisper"}
 
@@ -34,6 +34,7 @@ def run():
     store = Store(env)
     worker = Worker(store, Pipeline(env, settings))
     opts = {"parts": 2, "formats": {"short": True, "wide": True}, "face": True, "hook": True,
+            "edit": {"silence": True, "zoom": True, "cold_open": True},
             "audio": {"mode": "original", "engine": "edge", "text": "same", "dialect": "original", "voice": "ar-SA-HamedNeural", "music": ""},
             "source": {"type": "file", "file_id": src.name, "name": "selftest"}}
     job = store.add("فحص ذاتي", opts, steps_for(opts))

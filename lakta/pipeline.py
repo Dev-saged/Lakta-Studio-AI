@@ -2,7 +2,7 @@ import json
 import shutil
 
 from config import CONFIG
-from . import audio, captions, covers, director, ingest, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, captions, covers, director, edit, ingest, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
@@ -110,8 +110,15 @@ class Pipeline:
         plan = []
         for c in clips:
             dur_src = c["e"] - c["s"]
-            plan.append({"c": c, "s": c["s"], "dur_src": dur_src, "out_dur": dur_src / speed,
-                         "words": captions.shift(tr["words"], c["s"], c["e"], speed)})
+            item = {"c": c, "s": c["s"], "dur_src": dur_src, "out_dur": dur_src / speed,
+                    "words": captions.shift(tr["words"], c["s"], c["e"], speed)}
+            if a["mode"] == "original":
+                edl = edit.plan(tr["words"], c["s"], c["e"], opts, c.get("open"))
+                if edl:
+                    item.update(edl=edl, out_dur=edit.total(edl["abs"]) / speed, words=edit.remap(tr["words"], edl["abs"], speed))
+                    cut = dur_src - edit.total(edl["abs"]) + (edl["abs"][0][1] - edl["abs"][0][0] if edl["cold"] else 0)
+                    log(f"مونتاج اللقطة {c['n']}: {len(edl['segs'])} مقطعاً · حُذف {cut:.1f}ث" + (" · افتتاحية بالخطاف" if edl["cold"] else ""))
+            plan.append(item)
         if a["mode"] != "original":
             job.step("voice")
             for i, p in enumerate(plan):
@@ -128,7 +135,8 @@ class Pipeline:
 
         # ٥) الخلفية
         for i, p in enumerate(plan):
-            p["orig"] = audio.segment(src["path"], p["s"], p["dur_src"], speed, work / f"orig_{i}.wav", meta["has_audio"], cancel)
+            p["orig"] = audio.segment(src["path"], p["s"], p["dur_src"], speed, work / f"orig_{i}.wav", meta["has_audio"], cancel,
+                                      p.get("edl"))
         if a["mode"] == "bg":
             job.step("separate")
             for i, p in enumerate(plan):
@@ -179,7 +187,8 @@ class Pipeline:
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
                             crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
-                            progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"))
+                            progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
+                            edl=p.get("edl"))
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)
