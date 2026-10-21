@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.6.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.7.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -21,6 +21,13 @@ CONFIG = {
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},
     "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
     "trash": {"days": 7},
+    "grades": {
+        "none": {"label": "بدون", "vf": ""},
+        "cinema": {"label": "سينمائي", "vf": "colorbalance=rs=-0.04:bs=0.06:rh=0.06:bh=-0.05,curves=preset=medium_contrast,eq=saturation=1.04"},
+        "warm": {"label": "دافئ", "vf": "colorbalance=rm=0.05:gm=0.01:bm=-0.05:rh=0.03,eq=saturation=1.08:gamma=1.02"},
+        "cool": {"label": "بارد", "vf": "colorbalance=rm=-0.04:bm=0.05:bh=0.03,eq=saturation=1.02"},
+        "vivid": {"label": "حيوي", "vf": "eq=saturation=1.22:contrast=1.06,curves=preset=lighter"},
+    },
     "quality": {
         "compact": {"label": "مضغوط", "crf": 23, "preset": "medium", "cq": 27, "maxrate": "5M", "enhance": False},
         "balanced": {"label": "متوازن", "crf": 20, "preset": "medium", "cq": 24, "maxrate": "9M", "enhance": True},
@@ -48,6 +55,7 @@ CONFIG = {
         "gemini_key": "", "text_model": "", "tts_model": "",
         "telegram_token": "", "telegram_chat": "", "telegram_zip": True,
         "whisper": "balanced", "resolution": 1080, "speed": 1.0, "quality": "balanced", "codec": "h264", "telegram_light": True,
+        "voice_clean": True, "grade": "none", "grain": False,
         "brand": {
             "caption_style": "classic", "words": 4, "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",
@@ -59,7 +67,7 @@ CONFIG = {
             },
         },
         "job": {
-            "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False,
+            "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False, "short_fill": False,
             "edit": {"silence": True, "zoom": True, "cold_open": True},
             "audio": {"mode": "original", "engine": "edge", "text": "same", "dialect": "original",
                       "voice": "ar-SA-HamedNeural", "music": ""},

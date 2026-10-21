@@ -99,12 +99,19 @@ def separate(wav, work, gpu, log, cancel):
     return None
 
 
-def mix(mode, out, dur, orig=None, voice=None, bg=None, music=None, cancel=None):
+# تنقية صوت المتكلم: قص الهمهمة، إزالة ضوضاء خفيفة، وضوح الحروف، تخفيف السين، وضغط ناعم
+CLEAN_ORIG = "highpass=f=75,afftdn=nf=-28:tn=1,equalizer=f=180:t=q:w=1:g=-1.5,equalizer=f=3200:t=q:w=1.2:g=2,deesser=i=0.35,acompressor=threshold=-20dB:ratio=2.5:attack=8:release=120:makeup=2"
+CLEAN_TTS = "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5,acompressor=threshold=-18dB:ratio=2:attack=10:release=150"
+
+
+def mix(mode, out, dur, orig=None, voice=None, bg=None, music=None, cancel=None, clean=True):
     final = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
     if mode == "original":
-        run(FF + ["-i", str(orig), "-af", final, "-t", f"{dur:.3f}", "-ac", "2", str(out)], cancel=cancel)
+        af = f"{CLEAN_ORIG},{final}" if clean else final
+        run(FF + ["-i", str(orig), "-af", af, "-t", f"{dur:.3f}", "-ac", "2", str(out)], cancel=cancel)
         return out
-    inputs, fc = ["-i", str(voice)], ["[0:a]aresample=48000,aformat=channel_layouts=stereo,volume=1.0,asplit=2[v][key]"]
+    vc = f",{CLEAN_TTS}" if clean else ""
+    inputs, fc = ["-i", str(voice)], [f"[0:a]aresample=48000,aformat=channel_layouts=stereo{vc},volume=1.0,asplit=2[v][key]"]
     under = None
     if mode == "bg":
         if bg:

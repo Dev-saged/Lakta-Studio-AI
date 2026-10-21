@@ -487,6 +487,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" class="chip" data-opt="wide">عريض ١٦:٩</button>
           <button type="button" class="chip" data-opt="face"><svg class="ic"><use href="#i-face"/></svg>تتبع الوجه</button>
           <button type="button" class="chip" data-opt="hook"><svg class="ic"><use href="#i-hook"/></svg>الخطاف</button>
+          <button type="button" class="chip" data-opt="short_fill"><svg class="ic"><use href="#i-lib"/></svg>شورتس بخلفية ضبابية</button>
         </div>
         <div class="field"><span class="lbl">المونتاج الذكي · مع الصوت الأصلي</span>
           <div class="chips" role="group" aria-label="المونتاج الذكي">
@@ -673,6 +674,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="field"><span class="lbl">دقة التفريغ (Whisper)</span><div class="seg sm" id="p-whisper"><button type="button" data-v="fast">سريع</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="best">أعلى دقة</button></div></div>
         <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button></div>
           <span class="sub" id="p-quality-hint"></span></div>
+        <div class="field"><span class="lbl">تلوين الفيديو</span><div class="seg sm" id="p-grade"><button type="button" data-v="none">بدون</button><button type="button" data-v="cinema">سينمائي</button><button type="button" data-v="warm">دافئ</button><button type="button" data-v="cool">بارد</button><button type="button" data-v="vivid">حيوي</button></div></div>
+        <div class="row"><div><b>حبيبات فيلم خفيفة</b><small>ملمس سينمائي ناعم</small></div><input type="checkbox" class="sw" id="p-grain" aria-label="حبيبات فيلم"></div>
+        <div class="row"><div><b>تنقية صوت المتكلم</b><small>إزالة الضوضاء والهمهمة، وضوح الصوت، وتسوية المستوى</small></div><input type="checkbox" class="sw" id="p-vclean" aria-label="تنقية الصوت"></div>
         <div class="field"><span class="lbl">الترميز</span><div class="seg sm" id="p-codec"><button type="button" data-v="h264">H.264 · الأوسع توافقاً</button><button type="button" data-v="hevc">HEVC · أصغر 40%</button></div>
           <span class="sub" id="p-codec-hint"></span></div>
         <div class="field"><span class="lbl">دقة التنزيل</span><div class="seg sm" id="p-res"><button type="button" data-v="720">720p</button><button type="button" data-v="1080">1080p</button><button type="button" data-v="2160">4K</button></div></div>
@@ -879,7 +883,7 @@ function bindGroup(root, get, set, attr = "data-v") {
 function defaultForm(st) {
   const d = st.defaults;
   return { src: "links", links: "", keyword: "", filter: "today", file: null, parts: d.parts, formats: { ...d.formats },
-           face: d.face, hook: d.hook, audio: { ...d.audio }, edit: { ...d.edit } };
+           face: d.face, hook: d.hook, short_fill: d.short_fill, audio: { ...d.audio }, edit: { ...d.edit } };
 }
 function setForm(patch) { const f = { ...S.form(), ...patch }; S.form.set(f); store.set(CONFIG.draftKey, { ...f, file: null }); }
 function setAudio(patch) { setForm({ audio: { ...S.form().audio, ...patch } }); }
@@ -923,7 +927,7 @@ function initStudio() {
   $("#job-form").addEventListener("submit", async e => {
     e.preventDefault();
     const f = F(), btn = $("#start");
-    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, audio: f.audio, edit: f.edit };
+    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, audio: f.audio, edit: f.edit };
     try {
       if (f.src === "links") { if (!f.links.trim()) throw new Error("الصق رابطاً واحداً على الأقل"); body.source = { type: "links", links: f.links }; }
       else if (f.src === "trend") { if (!f.keyword.trim()) throw new Error("اكتب كلمة مفتاحية"); body.source = { type: "trend", keyword: f.keyword, filter: f.filter }; }
@@ -1401,6 +1405,9 @@ function initPrefs() {
   const pr = bindGroup("#p-res", () => P().resolution, v => savePref({ resolution: +v }));
   const pq = bindGroup("#p-quality", () => P().quality, v => savePref({ quality: v }));
   const pc = bindGroup("#p-codec", () => P().codec, v => savePref({ codec: v }));
+  const pg = bindGroup("#p-grade", () => P().grade, v => savePref({ grade: v }));
+  $("#p-grain").addEventListener("change", e => savePref({ grain: e.target.checked }));
+  $("#p-vclean").addEventListener("change", e => savePref({ voice_clean: e.target.checked }));
   $("#p-tlight").addEventListener("change", e => savePref({ telegram_light: e.target.checked }));
   const QH = { compact: "أصغر حجم · نحو 25MB للدقيقة", balanced: "جودة عالية بحجم معتدل · نحو 40MB للدقيقة",
                premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس ليبقى القص حاداً · نحو 60MB للدقيقة" };
@@ -1437,7 +1444,8 @@ function initPrefs() {
 
   effect(() => {
     const st = S.state(); if (!st) return; const s = st.settings, e = st.env;
-    pw(); pr(); pq(); pc();
+    pw(); pr(); pq(); pc(); pg();
+    $("#p-grain").checked = !!s.grain; $("#p-vclean").checked = s.voice_clean !== false;
     $("#p-tlight").checked = s.telegram_light !== false;
     $("#p-codec-hint").textContent = s.codec === "hevc" ? "نفس الجودة بحجم أصغر، والملف يبقى MP4 · قد لا يعمل على أجهزة قديمة أو Firefox للكمبيوتر" : "يعمل على كل الأجهزة والمنصات";
     $("#p-quality-hint").textContent = QH[s.quality] || "";

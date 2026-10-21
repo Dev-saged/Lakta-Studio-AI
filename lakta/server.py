@@ -76,6 +76,7 @@ class App:
         opts = {"parts": max(1, min(CONFIG["clip"]["max_parts"], int(body.get("parts") or 1))),
                 "formats": {"short": bool(fm.get("short", True)), "wide": bool(fm.get("wide", True))},
                 "face": bool(body.get("face", True)), "hook": bool(body.get("hook", False)), "audio": a,
+                "short_fill": bool(body.get("short_fill", False)),
                 "edit": {k: bool((body.get("edit") or {}).get(k, v)) for k, v in d["edit"].items()}}
         if a["mode"] != "original" and (a["engine"] == "gemini" or a["text"] != "same" or a["dialect"] != "original") \
                 and not self.settings.get("gemini_key"):
