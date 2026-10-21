@@ -16,6 +16,23 @@ def client(key):
     return _clients[key]
 
 
+def friendly(e, kind="text"):
+    """رسالة عربية واضحة لأخطاء Gemini الشائعة"""
+    m = str(e)
+    low = m.lower()
+    if "429" in m or "resource_exhausted" in low or "quota" in low:
+        if kind == "image":
+            return "حصة مفتاح Gemini لا تسمح بتوليد الصور (الخطة المجانية لا تشملها). فعّل الفوترة في Google AI Studio، أو استخدم الزخرفة الهندسية."
+        return "تجاوزت حصة Gemini المتاحة لمفتاحك الآن. انتظر دقيقة وأعد المحاولة، أو راجع الحصة في ai.dev/rate-limit."
+    if "api key not valid" in low or "api_key_invalid" in low or "permission_denied" in low or "403" in m:
+        return "مفتاح Gemini غير صالح أو لا يملك صلاحية لهذا النموذج. تحقق منه في الإعدادات."
+    if "not found" in low and "model" in low or "404" in m:
+        return "النموذج غير متاح لمفتاحك. اختر نموذجاً آخر من الإعدادات بعد زر «اختبار»."
+    if "503" in m or "unavailable" in low or "overloaded" in low:
+        return "خوادم Gemini مزدحمة الآن. أعد المحاولة بعد قليل."
+    return m[:300]
+
+
 def list_models(key):
     return sorted(m.name.split("/")[-1] for m in client(key).models.list())
 
