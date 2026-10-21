@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.5.2"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.6.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -47,7 +47,7 @@ CONFIG = {
     "defaults": {
         "gemini_key": "", "text_model": "", "tts_model": "",
         "telegram_token": "", "telegram_chat": "", "telegram_zip": True,
-        "whisper": "balanced", "resolution": 1080, "speed": 1.0, "quality": "balanced",
+        "whisper": "balanced", "resolution": 1080, "speed": 1.0, "quality": "balanced", "codec": "h264", "telegram_light": True,
         "brand": {
             "caption_style": "classic", "words": 4, "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",

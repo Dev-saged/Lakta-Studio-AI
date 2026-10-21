@@ -664,6 +664,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="field"><label for="p-ttoken">توكن البوت</label><input class="box mono" id="p-ttoken" type="password" autocomplete="off" dir="ltr"></div>
         <div class="field"><label for="p-tchat">معرّف المحادثة</label><input class="box mono" id="p-tchat" type="password" autocomplete="off" dir="ltr"></div>
         <div class="row"><div><b>إرسال الملفات بعد كل فيديو</b><small>ZIP فيه اللقطات والأغلفة والعناوين</small></div><input type="checkbox" class="sw" id="p-tzip" aria-label="إرسال الملفات"></div>
+        <div class="row"><div><b>نسخة خفيفة للفيديو الكبير</b><small>فيديو أكبر من 50MB يُرسل بنسخة مضغوطة تناسب تيليجرام · الأصلي يبقى في المكتبة</small></div><input type="checkbox" class="sw" id="p-tlight" aria-label="نسخة خفيفة"></div>
         <button type="button" class="btn ghost" id="t-telegram">إرسال رسالة تجريبية</button>
         <span class="note" id="n-telegram"></span>
       </section>
@@ -672,6 +673,8 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="field"><span class="lbl">دقة التفريغ (Whisper)</span><div class="seg sm" id="p-whisper"><button type="button" data-v="fast">سريع</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="best">أعلى دقة</button></div></div>
         <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button></div>
           <span class="sub" id="p-quality-hint"></span></div>
+        <div class="field"><span class="lbl">الترميز</span><div class="seg sm" id="p-codec"><button type="button" data-v="h264">H.264 · الأوسع توافقاً</button><button type="button" data-v="hevc">HEVC · أصغر 40%</button></div>
+          <span class="sub" id="p-codec-hint"></span></div>
         <div class="field"><span class="lbl">دقة التنزيل</span><div class="seg sm" id="p-res"><button type="button" data-v="720">720p</button><button type="button" data-v="1080">1080p</button><button type="button" data-v="2160">4K</button></div></div>
         <div class="field"><label for="p-speed">سرعة التشغيل · <span class="mono" id="p-speed-v">1.00×</span></label><input type="range" id="p-speed" min="1" max="1.1" step=".01" dir="ltr"></div>
       </section>
@@ -1397,6 +1400,8 @@ function initPrefs() {
   const pw = bindGroup("#p-whisper", () => P().whisper, v => savePref({ whisper: v }));
   const pr = bindGroup("#p-res", () => P().resolution, v => savePref({ resolution: +v }));
   const pq = bindGroup("#p-quality", () => P().quality, v => savePref({ quality: v }));
+  const pc = bindGroup("#p-codec", () => P().codec, v => savePref({ codec: v }));
+  $("#p-tlight").addEventListener("change", e => savePref({ telegram_light: e.target.checked }));
   const QH = { compact: "أصغر حجم · نحو 25MB للدقيقة", balanced: "جودة عالية بحجم معتدل · نحو 40MB للدقيقة",
                premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس ليبقى القص حاداً · نحو 60MB للدقيقة" };
   const savePref = patch => { const st = S.state(); S.state.set({ ...st, settings: { ...st.settings, ...patch } }); saveSettings(patch); buzz(5); };
@@ -1432,7 +1437,9 @@ function initPrefs() {
 
   effect(() => {
     const st = S.state(); if (!st) return; const s = st.settings, e = st.env;
-    pw(); pr(); pq();
+    pw(); pr(); pq(); pc();
+    $("#p-tlight").checked = s.telegram_light !== false;
+    $("#p-codec-hint").textContent = s.codec === "hevc" ? "نفس الجودة بحجم أصغر، والملف يبقى MP4 · قد لا يعمل على أجهزة قديمة أو Firefox للكمبيوتر" : "يعمل على كل الأجهزة والمنصات";
     $("#p-quality-hint").textContent = QH[s.quality] || "";
     const ph = (k, label) => s[k].set ? `${s[k].hint} · من ${s[k].source}` : label;
     $("#p-gkey").placeholder = ph("gemini_key", "AIza…"); $("#p-ttoken").placeholder = ph("telegram_token", "من @BotFather"); $("#p-tchat").placeholder = ph("telegram_chat", "Chat ID");

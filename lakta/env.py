@@ -266,12 +266,20 @@ def video_encoder():
     return _encoder
 
 
-def encoder_args(profile=None, force_cpu=False):
-    """ترميز H.264 بجودة عالية وحجم صغير مع سقف معدل للبث على المنصات"""
+def encoder_args(profile=None, force_cpu=False, codec="h264"):
+    """ترميز عالي الجودة بحجم صغير مع سقف معدل للبث · HEVC داخل MP4 بوسم hvc1 ليعمل على أجهزة أبل"""
     q = CONFIG["quality"].get(profile) or CONFIG["quality"]["balanced"]
     br = int(q["maxrate"].rstrip("M"))
-    common = ["-maxrate", q["maxrate"], "-bufsize", f"{br * 2}M", "-g", "60", "-profile:v", "high",
-              "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"]
+    color = ["-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"]
+    if codec == "hevc":
+        br = max(2, int(br * 0.65))
+        common = ["-maxrate", f"{br}M", "-bufsize", f"{br * 2}M", "-g", "60", "-tag:v", "hvc1", *color]
+        if video_encoder() == "h264_nvenc" and not force_cpu:
+            return ["-c:v", "hevc_nvenc", "-preset", "p7", "-tune", "hq", "-rc", "vbr", "-cq", str(q["cq"] + 2), "-b:v", "0",
+                    "-spatial-aq", "1", "-temporal-aq", "1", *common]
+        return ["-c:v", "libx265", "-preset", "medium" if q["preset"] == "slow" else "fast", "-crf", str(q["crf"] + 3),
+                "-x265-params", "aq-mode=3:psy-rd=1.5:log-level=error", *common]
+    common = ["-maxrate", q["maxrate"], "-bufsize", f"{br * 2}M", "-g", "60", "-profile:v", "high", *color]
     if video_encoder() == "h264_nvenc" and not force_cpu:
         return ["-c:v", "h264_nvenc", "-preset", "p7", "-tune", "hq", "-rc", "vbr", "-cq", str(q["cq"]), "-b:v", "0",
                 "-spatial-aq", "1", "-temporal-aq", "1", "-bf", "3", *common]
