@@ -265,10 +265,23 @@ def video_encoder():
     return _encoder
 
 
-def encoder_args(crf=20):
-    if video_encoder() == "h264_nvenc":
-        return ["-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", str(crf + 2), "-b:v", "0"]
-    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf)]
+def encoder_args(profile=None, force_cpu=False):
+    """ترميز H.264 بجودة عالية وحجم صغير مع سقف معدل للبث على المنصات"""
+    q = CONFIG["quality"].get(profile) or CONFIG["quality"]["balanced"]
+    br = int(q["maxrate"].rstrip("M"))
+    common = ["-maxrate", q["maxrate"], "-bufsize", f"{br * 2}M", "-g", "60", "-profile:v", "high",
+              "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv"]
+    if video_encoder() == "h264_nvenc" and not force_cpu:
+        return ["-c:v", "h264_nvenc", "-preset", "p7", "-tune", "hq", "-rc", "vbr", "-cq", str(q["cq"]), "-b:v", "0",
+                "-spatial-aq", "1", "-temporal-aq", "1", "-bf", "3", *common]
+    return ["-c:v", "libx264", "-preset", q["preset"], "-crf", str(q["crf"]), "-tune", "film",
+            "-x264-params", "aq-mode=3:aq-strength=0.9:deblock=-1,-1:psy-rd=1.0,0.15", *common]
+
+
+def enhance_filters(profile=None):
+    """تحسين حدة وتباين خفيف بعد التحجيم"""
+    q = CONFIG["quality"].get(profile) or CONFIG["quality"]["balanced"]
+    return ["unsharp=5:5:0.55:3:3:0.0", "eq=contrast=1.03:saturation=1.07"] if q["enhance"] else []
 
 
 def filter_path(p):

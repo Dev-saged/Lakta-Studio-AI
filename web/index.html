@@ -652,7 +652,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
       <section class="card" style="--i:4">
         <h2 class="h2"><svg class="ic"><use href="#i-scissors"/></svg>المعالجة</h2>
         <div class="field"><span class="lbl">دقة التفريغ (Whisper)</span><div class="seg sm" id="p-whisper"><button type="button" data-v="fast">سريع</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="best">أعلى دقة</button></div></div>
-        <div class="field"><span class="lbl">جودة التنزيل والإخراج</span><div class="seg sm" id="p-res"><button type="button" data-v="720">720p</button><button type="button" data-v="1080">1080p</button></div></div>
+        <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button></div>
+          <span class="sub" id="p-quality-hint"></span></div>
+        <div class="field"><span class="lbl">دقة التنزيل</span><div class="seg sm" id="p-res"><button type="button" data-v="720">720p</button><button type="button" data-v="1080">1080p</button><button type="button" data-v="2160">4K</button></div></div>
         <div class="field"><label for="p-speed">سرعة التشغيل · <span class="mono" id="p-speed-v">1.00×</span></label><input type="range" id="p-speed" min="1" max="1.1" step=".01" dir="ltr"></div>
       </section>
       <section class="card" style="--i:5">
@@ -1363,6 +1365,9 @@ function initPrefs() {
   const P = () => S.state().settings;
   const pw = bindGroup("#p-whisper", () => P().whisper, v => savePref({ whisper: v }));
   const pr = bindGroup("#p-res", () => P().resolution, v => savePref({ resolution: +v }));
+  const pq = bindGroup("#p-quality", () => P().quality, v => savePref({ quality: v }));
+  const QH = { compact: "أصغر حجم · نحو 25MB للدقيقة", balanced: "جودة عالية بحجم معتدل · نحو 40MB للدقيقة",
+               premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس ليبقى القص حاداً · نحو 60MB للدقيقة" };
   const savePref = patch => { const st = S.state(); S.state.set({ ...st, settings: { ...st.settings, ...patch } }); saveSettings(patch); buzz(5); };
   const secret = (id, key) => {
     const el = $(id);
@@ -1396,7 +1401,8 @@ function initPrefs() {
 
   effect(() => {
     const st = S.state(); if (!st) return; const s = st.settings, e = st.env;
-    pw(); pr();
+    pw(); pr(); pq();
+    $("#p-quality-hint").textContent = QH[s.quality] || "";
     const ph = (k, label) => s[k].set ? `${s[k].hint} · من ${s[k].source}` : label;
     $("#p-gkey").placeholder = ph("gemini_key", "AIza…"); $("#p-ttoken").placeholder = ph("telegram_token", "من @BotFather"); $("#p-tchat").placeholder = ph("telegram_chat", "Chat ID");
     if (document.activeElement !== $("#p-tmodel")) $("#p-tmodel").value = s.text_model || "";
