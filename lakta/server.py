@@ -22,6 +22,8 @@ UPLOADS = {
     "video": ({".mp4", ".mkv", ".mov", ".webm", ".m4v"}, "upload_mb"),
     "font": ({".ttf", ".otf"}, "font_mb"),
     "watermark": ({".png", ".webp", ".jpg", ".jpeg"}, "image_mb"),
+    "frame_short": ({".png"}, "image_mb"),
+    "frame_wide": ({".png"}, "image_mb"),
     "music": ({".mp3", ".m4a", ".wav", ".ogg"}, "music_mb"),
     "cookies": ({".txt"}, "json_kb"),
 }
@@ -305,10 +307,13 @@ def handler(app):
                     return self._json({"url": f"/cache/{p.name}"})
                 if path == "/api/delete":
                     kind, name = body.get("kind"), Path(str(body.get("name", ""))).name
-                    root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets}.get(kind)
+                    root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets,
+                            "frame_short": app.env.assets, "frame_wide": app.env.assets}.get(kind)
                     if not root or not name or name == CONFIG["fonts"]["default"]:
                         raise ValueError("لا يمكن الحذف")
                     (root / name).unlink(missing_ok=True)
+                    if kind.startswith("frame_") or kind == "watermark":
+                        app.settings.update({"brand": {kind: ""}})
                     return self._json(app.state())
                 self._err("غير موجود", 404)
             except (ValueError, RuntimeError, KeyError) as e:
@@ -353,8 +358,9 @@ def handler(app):
             elif kind == "cookies":
                 dst = app.env.assets / "youtube_cookies.txt"
             else:
-                root = {"font": app.env.fonts, "watermark": app.env.assets, "music": app.env.music}[kind]
-                dst = root / ("watermark" + ext if kind == "watermark" else name)
+                root = {"font": app.env.fonts, "watermark": app.env.assets, "music": app.env.music,
+                        "frame_short": app.env.assets, "frame_wide": app.env.assets}[kind]
+                dst = root / ("watermark" + ext if kind == "watermark" else kind + ext if kind.startswith("frame_") else name)
             tmp = dst.with_name(dst.name + ".part")
             with open(tmp, "wb") as f:
                 left = n
@@ -380,6 +386,8 @@ def handler(app):
                 app.settings.update({"brand": {"watermark": dst.name}})
             if kind == "font":
                 app.settings.update({"brand": {"font": dst.name}})
+            if kind.startswith("frame_"):
+                app.settings.update({"brand": {kind: dst.name}})
             return {"ok": True, "name": dst.name, "file_id": dst.name if kind == "video" else None, "state": app.state()}
 
     return H
@@ -392,7 +400,7 @@ def _validate(kind, path):
     elif kind == "font":
         from PIL import ImageFont
         ImageFont.truetype(str(path), 20)
-    elif kind == "watermark":
+    elif kind == "watermark" or kind.startswith("frame_"):
         from PIL import Image
         with Image.open(path) as im:
             im.verify()

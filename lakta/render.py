@@ -11,7 +11,7 @@ def hex_color(c):
 
 
 def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fonts_dir, brand, watermark,
-         crop=None, work=None, cancel=None, progress=None):
+         crop=None, work=None, cancel=None, progress=None, template=None):
     W, H = SIZES[(fmt, 720 if int(res) <= 720 else 1080)]
     v = []
     if fmt == "short" and crop:
@@ -21,20 +21,27 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
     else:
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black")
     v += ["setsar=1", f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
-    if brand.get("frame_on"):
+    if brand.get("frame_on") and not template:
         t = max(8, W // 50)
         col = hex_color(brand.get("frame_color"))
         v.append(f"drawbox=x=0:y=0:w=iw:h=ih:color={col}:t={t}")
         v.append(f"drawbox=x={t}:y={t}:w=iw-{2 * t}:h=ih-{2 * t}:color=white:t={max(2, t // 4)}")
-    v.append(f"ass='{filter_path(ass_path)}':fontsdir='{filter_path(fonts_dir)}':shaping=complex")
-    graph = f"[0:v]{','.join(v)}[base]"
+    ass = f"ass='{filter_path(ass_path)}':fontsdir='{filter_path(fonts_dir)}':shaping=complex"
     inputs = ["-ss", f"{s:.3f}", "-t", f"{dur_src:.3f}", "-i", str(src), "-i", str(audio_wav)]
+    idx = 2
+    if template:
+        inputs += ["-loop", "1", "-i", str(template)]
+        graph = (f"[0:v]{','.join(v)}[v0];[{idx}:v]scale={W}:{H},format=rgba[tp];"
+                 f"[v0][tp]overlay=0:0:format=auto:shortest=1,{ass}[base]")
+        idx += 1
+    else:
+        graph = f"[0:v]{','.join(v + [ass])}[base]"
     last = "[base]"
     if watermark:
         p = int(W * 0.03)
         x, y = (e.format(p=p) for e in WM_POS.get(brand.get("watermark_pos"), WM_POS["tr"]))
         inputs += ["-i", str(watermark)]
-        graph += f";[2:v]scale={int(W * 0.15)}:-1,format=rgba,colorchannelmixer=aa=0.85[wm];[base][wm]overlay=x={x}:y={y}:format=auto[vout]"
+        graph += f";[{idx}:v]scale={int(W * 0.15)}:-1,format=rgba,colorchannelmixer=aa=0.85[wm];[base][wm]overlay=x={x}:y={y}:format=auto[vout]"
         last = "[vout]"
     script = work / f"fc_{out.stem}.txt"
     script.write_text(graph, "utf-8")

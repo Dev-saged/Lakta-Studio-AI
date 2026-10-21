@@ -54,7 +54,19 @@ def _frame_border(draw, w, h, color):
     draw.rectangle([t, t, w - t - 1, h - t - 1], outline="white", width=max(2, t // 4))
 
 
-def make(still, out_dir, text, part, font_path, brand, crop_x=None):
+def _decorate(img, template, brand, color):
+    """قالب PNG جاهز إن وُجد، وإلا الإطار المرسوم"""
+    if template:
+        tp = Image.open(template).convert("RGBA").resize(img.size, Image.LANCZOS)
+        base = img.convert("RGBA")
+        base.alpha_composite(tp)
+        return base.convert("RGB")
+    if brand.get("frame_on"):
+        _frame_border(ImageDraw.Draw(img), *img.size, color)
+    return img
+
+
+def make(still, out_dir, text, part, font_path, brand, crop_x=None, templates=None):
     """غلاف عريض 1280×720 + غلاف شورتس 1080×1920 + لقطتا معاينة بلا نص"""
     base = Image.open(still).convert("RGB")
     w, h = base.size
@@ -69,9 +81,8 @@ def make(still, out_dir, text, part, font_path, brand, crop_x=None):
         wide = ImageOps.fit(base, (1280, 720)).filter(ImageFilter.GaussianBlur(30))
         wide.paste(fg, ((1280 - fg.width) // 2, 0))
     wide.save(out_dir / f"poster_wide_{part}.jpg", quality=88)
+    wide = _decorate(wide, (templates or {}).get("wide"), brand, color)
     d = ImageDraw.Draw(wide)
-    if brand.get("frame_on"):
-        _frame_border(d, 1280, 720, color)
     fs = int(1280 * 0.10)
     f1, f2 = ImageFont.truetype(str(font_path), fs), ImageFont.truetype(str(font_path), int(fs * 0.7))
     _text(d, (640, 720 * 0.66), text, f1, "#FFEA00", 8, 4)
@@ -86,9 +97,8 @@ def make(still, out_dir, text, part, font_path, brand, crop_x=None):
         x = max(0, min(w - cw, (w - cw) // 2 if crop_x is None else crop_x))
         short = base.crop((x, 0, x + cw, h)).resize((1080, 1920), Image.LANCZOS)
     short.save(out_dir / f"poster_short_{part}.jpg", quality=88)
+    short = _decorate(short, (templates or {}).get("short"), brand, color)
     d = ImageDraw.Draw(short)
-    if brand.get("frame_on"):
-        _frame_border(d, 1080, 1920, color)
     fs = int(1080 * 0.15)
     f1, f2 = ImageFont.truetype(str(font_path), fs), ImageFont.truetype(str(font_path), int(fs * 0.8))
     wrapped = "\n".join(textwrap.wrap(text, width=10)) or text

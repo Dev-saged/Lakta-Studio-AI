@@ -155,7 +155,8 @@ class Pipeline:
             still = thumbs.best_frame(src["path"], p["s"], p["dur_src"], work, i)
             if still:
                 files = thumbs.make(still, out, c["thumb"], n, font_file, brand,
-                                    crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop else None)
+                                    crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop else None,
+                                    templates={f: _template(env, brand, f) for f in ("short", "wide")})
                 c["files"].update({k: f"{job.id}/{v.name}" for k, v in files.items()})
             for fmt in fmts:
                 job.note(f"اللقطة {n} · {'شورتس' if fmt == 'short' else 'عريض'}")
@@ -165,7 +166,7 @@ class Pipeline:
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
-                            crop=crop if fmt == "short" else None, work=work, cancel=cancel,
+                            crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             progress=lambda x, b=base: job.progress((b + x) / total))
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
@@ -192,6 +193,12 @@ class Pipeline:
             except Exception as e:
                 log(f"تعذّر الإرسال لتيليجرام: {str(e)[:160]}")
         log("اكتمل الإنتاج")
+
+
+def _template(env, brand, fmt):
+    name = brand.get(f"frame_{fmt}")
+    p = env.assets / name if name else None
+    return p if p and p.exists() else None
 
 
 def _public(clips):
