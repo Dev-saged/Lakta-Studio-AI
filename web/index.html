@@ -221,6 +221,9 @@ input[type=color]{width:36px;height:36px;border:0;border-radius:50%;padding:0;ba
 .bar i{display:block;height:100%;width:var(--w,0%);background:var(--accent);border-radius:2px;position:relative;overflow:hidden;transition:width .5s var(--ease)}
 .bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,oklch(1 0 0 / .45),transparent);animation:shine 1.6s linear infinite}
 @keyframes shine{from{translate:-100% 0}to{translate:100% 0}}
+.guide summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font:600 var(--t-s)/1.4 var(--f-body);color:var(--accent-ink)}
+.guide ol{margin:0;padding-inline-start:20px;display:grid;gap:var(--s2);font-size:var(--t-s);line-height:1.7}
+.guide{display:grid;gap:var(--s2)}
 details.log summary{cursor:pointer;font-size:var(--t-xs);color:var(--muted);min-height:36px;display:flex;align-items:center}
 details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--f-mono);direction:rtl;text-align:start;white-space:pre-wrap;background:var(--surface-2);border-radius:var(--r);padding:var(--s3)}
 .err{padding:var(--s3);border-radius:var(--r);background:color-mix(in oklch,var(--bad) 12%,var(--surface));color:var(--bad);font-size:var(--t-xs);overflow-wrap:anywhere}
@@ -642,9 +645,21 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
       </section>
       <section class="card" style="--i:6">
         <h2 class="h2"><svg class="ic"><use href="#i-cookie"/></svg>كوكيز يوتيوب</h2>
-        <p class="sub">إن ظهر خطأ «Sign in to confirm you're not a bot» صدّر ملف cookies.txt من متصفحك وارفعه هنا.</p>
+        <p class="sub">يوتيوب يحجب سيرفرات Kaggle وColab ويطلب «تسجيل الدخول». ملف الكوكيز يجعل التنزيل يتم باسم حسابك.</p>
         <span class="note" id="n-cookies"></span>
-        <label class="btn ghost" for="up-cookies"><svg class="ic"><use href="#i-upload"/></svg>رفع cookies.txt<input type="file" id="up-cookies" accept=".txt" hidden></label>
+        <details class="guide" id="cookies-guide"><summary>طريقة استخراج cookies.txt</summary>
+          <ol>
+            <li>من الكمبيوتر: ثبّت إضافة <b>Get cookies.txt LOCALLY</b> على Chrome أو Firefox. من الجوال: استخدم متصفح Firefox أو Kiwi لأنهما يدعمان الإضافات.</li>
+            <li>افتح نافذة تصفح خاص، وسجّل الدخول في youtube.com بحساب ثانوي (ليس حسابك الأساسي).</li>
+            <li>افتح أي فيديو، ثم من الإضافة اختر <b>Export</b> لموقع youtube.com فقط، وأغلق النافذة الخاصة فوراً حتى لا تتغير الكوكيز.</li>
+            <li>ارفع الملف هنا. أو انسخ محتواه في Kaggle ← Add-ons ← Secrets باسم <b class="mono">YOUTUBE_COOKIES</b> ليبقى ثابتاً في كل تشغيل.</li>
+          </ol>
+          <p class="sub">تنتهي صلاحية الكوكيز بعد مدة؛ إن عاد الخطأ صدّرها من جديد.</p>
+        </details>
+        <div class="acts">
+          <label class="btn ghost" for="up-cookies"><svg class="ic"><use href="#i-upload"/></svg>رفع cookies.txt<input type="file" id="up-cookies" accept=".txt" hidden></label>
+          <button type="button" class="icb" id="cookies-del" aria-label="حذف ملف الكوكيز" hidden><svg class="ic"><use href="#i-trash"/></svg></button>
+        </div>
       </section>
       <section class="card" style="--i:7">
         <div class="row"><div><b>المظهر</b><small id="theme-label">حسب النظام</small></div><button type="button" class="icb" id="theme" aria-label="تبديل المظهر"><svg class="ic"><use href="#i-moon"/></svg></button></div>
@@ -787,7 +802,12 @@ function go(v) {
   document.startViewTransition && !reduced && S.view() !== v ? document.startViewTransition(apply) : apply();
   if (v === "test") runTests();
 }
-document.addEventListener("click", e => { const g = e.target.closest("[data-go]"); if (g) { e.preventDefault(); go(g.dataset.go); buzz(6); window.scrollTo({ top: 0 }); } });
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-go]"); if (!g) return;
+  e.preventDefault(); go(g.dataset.go); buzz(6);
+  if (g.dataset.focus === "cookies") setTimeout(() => { $("#cookies-guide").open = true; $("#cookies-guide").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" }); }, 350);
+  else window.scrollTo({ top: 0 });
+});
 addEventListener("hashchange", () => go(location.hash.slice(1)));
 // سحب للرجوع من الحافة
 (() => { let x0 = null, y0 = 0;
@@ -985,7 +1005,8 @@ function renderJobs() {
           </div>
         </div>
       </div>
-      ${j.error ? `<p class="err">${esc(j.error)}</p>` : ""}
+      ${j.error ? `<p class="err">${esc(j.error.replace("[youtube-auth]", "").trim())}</p>` : ""}
+      ${j.error?.includes("[youtube-auth]") ? `<div class="acts"><a class="btn ghost sm" href="#prefs" data-go="prefs" data-focus="cookies"><svg class="ic"><use href="#i-cookie"/></svg>رفع الكوكيز</a><button class="btn ghost sm" data-act-local="upload"><svg class="ic"><use href="#i-upload"/></svg>رفع الفيديو بدلاً من ذلك</button></div>` : ""}
       ${canScrub ? `<div class="tl" id="tl" role="slider" tabindex="0" aria-label="موضع المعاينة" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><svg id="wave" preserveAspectRatio="none" viewBox="0 0 300 68" aria-hidden="true"></svg><span class="head"></span></div>
       <div class="tl-cap"><span>00:00</span><b id="tc-now">00:00</b><span>${mmss(j.duration)}</span></div>` : (j.status === "running" ? `<div class="tl sk"></div>` : "")}
     </article>
@@ -1047,6 +1068,7 @@ function initJobs() {
       else { S.sel.set({ job: j.id, clip: i }); renderJobs(); }
       buzz(5); return;
     }
+    if (e.target.closest("[data-act-local=upload]")) { setForm({ src: "file" }); go("studio"); window.scrollTo({ top: 0 }); return; }
     const act = e.target.closest("[data-act]");
     if (act) {
       try { const r = await api(`/api/jobs/${act.dataset.id}/${act.dataset.act}`, {}); if (r.ids) S.sel.set({ job: r.ids[0], clip: 0 }); toast(act.dataset.act === "cancel" ? "جاري الإيقاف" : "أُعيدت إلى الطابور"); }
@@ -1283,6 +1305,7 @@ function initPrefs() {
     return `المفتاح يعمل · ${r.count} نموذجاً متاحاً`;
   });
   test("#t-telegram", "/api/test/telegram", "#n-telegram", () => "وصلت الرسالة");
+  $("#cookies-del").addEventListener("click", async () => { try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "cookies", name: "youtube_cookies.txt" })) }); toast("حُذف ملف الكوكيز"); } catch (e) { fail(e); } });
   $("#music-list").addEventListener("click", async e => { const b = e.target.closest("[data-del-music]"); if (!b) return; try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "music", name: b.dataset.delMusic })) }); } catch (err) { fail(err); } });
   const themes = [null, "light", "dark"], labels = ["حسب النظام", "فاتح", "داكن"];
   let ti = Math.max(0, themes.indexOf(store.get(CONFIG.themeKey, null)));
@@ -1300,7 +1323,9 @@ function initPrefs() {
     $("#p-tzip").checked = s.telegram_zip;
     $("#p-speed").value = s.speed; $("#p-speed-v").textContent = (+s.speed).toFixed(2) + "×";
     if (!$("#n-gemini").textContent) $("#n-gemini").innerHTML = s.gemini_key.set ? `<svg class="ic"><use href="#i-check"/></svg>مضبوط · من ${esc(s.gemini_key.source)}` : "اختياري للأصلي · مطلوب للمونتير الذكي والصياغة واللهجات";
-    $("#n-cookies").textContent = st.cookies ? "ملف الكوكيز مرفوع ✓" : "لم يُرفع ملف كوكيز";
+    $("#n-cookies").className = "note" + (st.cookies ? " ok" : "");
+    $("#n-cookies").textContent = st.cookies === "file" ? "ملف الكوكيز مرفوع ✓" : st.cookies === "secret" ? "الكوكيز مقروءة من Secrets ✓" : "لا توجد كوكيز بعد";
+    $("#cookies-del").hidden = st.cookies !== "file";
     $("#music-list").innerHTML = st.music.length ? st.music.map(m => `<div class="row"><div><b>${esc(m)}</b></div><button class="icb" data-del-music="${esc(m)}" aria-label="حذف"><svg class="ic"><use href="#i-trash"/></svg></button></div>`).join("") : `<p class="sub">لا توجد مقاطع بعد</p>`;
     $("#srv-card").innerHTML = `<span class="icb"><svg class="ic"><use href="#i-chip"/></svg></span>
       <div><b style="font:600 var(--t-s)/1.3 var(--f-body)">${esc(e.name)} · ${S.online() ? "متصل" : "غير متصل"}</b><p class="sub mono" style="text-align:start">${esc(location.host)}</p></div>
