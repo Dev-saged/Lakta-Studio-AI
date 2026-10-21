@@ -3,7 +3,7 @@ import shutil
 
 from config import CONFIG
 from . import audio, captions, covers, director, edit, ingest, reframe, render, templates, thumbs, transcribe, voice
-from .notify import Telegram
+from .notify import Telegram, safe_name
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
 
@@ -203,14 +203,14 @@ class Pipeline:
 
         # ٧) التغليف والإرسال
         job.step("package")
-        zpath = shutil.make_archive(str(env.outputs / f"{job.id}_lakta"), "zip", out)
-        zip_rel = f"{job.id}/{job.id}_lakta.zip"
-        shutil.move(zpath, out / f"{job.id}_lakta.zip")
-        job.set(zip=zip_rel)
+        # الملف المضغوط باسم المشروع ليُعرف في تيليجرام والتنزيل
+        zname = f"{safe_name(seo['title'] or src['title'])}.zip"
+        zpath = shutil.make_archive(str(env.outputs / f"{job.id}_pack"), "zip", out)
+        shutil.move(zpath, out / zname)
+        job.set(zip=f"{job.id}/{zname}")
         if Telegram(st).ready and st.get("telegram_zip"):
-            files = [out / f"{FORMAT_LABEL[f]}_Part{c['n']}.mp4" for c in clips for f in fmts]
             try:
-                job.note(tg.deliver(out / f"{job.id}_lakta.zip", files, f"✅ {seo['title']} · {len(clips)} أجزاء"))
+                job.note(tg.deliver(out / zname, out, f"✅ {seo['title']} · {len(clips)} أجزاء"))
             except Exception as e:
                 log(f"تعذّر الإرسال لتيليجرام: {str(e)[:160]}")
         log("اكتمل الإنتاج")
@@ -249,5 +249,7 @@ def deliver_again(env, settings, job):
     if not tg.ready:
         raise RuntimeError("أضف توكن البوت ومعرّف المحادثة من الإعدادات")
     out = env.outputs / job["id"]
-    files = sorted(out.glob("*_Part*.mp4"))
-    return tg.deliver(out / f"{job['id']}_lakta.zip", files, f"✅ {job['seo'].get('title') or job['title']}")
+    z = env.outputs / job["zip"] if job.get("zip") else next(iter(sorted(out.glob("*.zip"))), None)
+    if not z or not z.exists():
+        raise RuntimeError("لا يوجد ملف مضغوط لهذا المشروع")
+    return tg.deliver(z, out, f"✅ {job['seo'].get('title') or job['title']}")
