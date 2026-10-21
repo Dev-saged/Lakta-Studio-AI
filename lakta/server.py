@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import director, ingest, templates, voice
+from . import director, fonts, ingest, templates, voice
 from .env import ROOT, ffprobe
 from .pipeline import deliver_again, steps_for
 
@@ -48,6 +48,7 @@ class App:
         ver, jobs = self.store.snapshot()
         return {"app": CONFIG["app"], "repo": CONFIG["repo"], "env": self.env.info(), "settings": self.settings.public(),
                 "fonts": sorted(p.name for p in self.env.fonts.glob("*") if p.suffix.lower() in (".ttf", ".otf")),
+                "google_fonts": fonts.GOOGLE_ARABIC,
                 "music": sorted(p.name for p in self.env.music.glob("*") if p.suffix.lower() in UPLOADS["music"][0]),
                 "cookies": "file" if (self.env.assets / "youtube_cookies.txt").exists() else ("secret" if ingest.cookies_path(self.env) else ""),
                 "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "clip": CONFIG["clip"], "trash_days": CONFIG["trash"]["days"],
@@ -328,6 +329,15 @@ def handler(app):
                     return self._json({"url": f"/cache/{p.name}"})
                 if path.startswith("/api/template/"):
                     return self._json(self._template(path.rsplit("/", 1)[1], body))
+                if path == "/api/fonts/fetch":
+                    try:
+                        name = fonts.fetch_google(str(body.get("name", "")), app.env.fonts, app.env.temp / "gf")
+                    except ValueError:
+                        raise
+                    except Exception as e:
+                        raise ValueError(f"تعذّر تنزيل الخط: {str(e)[:120]}")
+                    app.settings.update({"brand": {"font": name}})
+                    return self._json({"name": name, **app.state()})
                 if path == "/api/delete":
                     kind, name = body.get("kind"), Path(str(body.get("name", ""))).name
                     root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets, "cookies": app.env.assets,
