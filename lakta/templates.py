@@ -66,6 +66,28 @@ def design(settings, idea):
     return out
 
 
+def geometric(t, out_path, size=480):
+    """زخرفة هندسية (نجمة ثمانية متكررة) بألوان الهوية — لا تحتاج أي API"""
+    import math
+    im = Image.new("RGB", (size, size), _rgb(t["base"])[:3])
+    d = ImageDraw.Draw(im)
+    A = _rgb(t["accent"])[:3]
+    soft = tuple(int(a * 0.55 + b * 0.45) for a, b in zip(A, _rgb(t["base"])[:3]))
+    for cx, cy in ((0, 0), (size, 0), (0, size), (size, size), (size // 2, size // 2)):
+        for r, col, w in ((size * 0.22, A, 4), (size * 0.13, soft, 3)):
+            pts = []
+            for k in range(16):
+                rr = r if k % 2 == 0 else r * 0.62
+                a = math.pi / 8 * k
+                pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
+            d.polygon(pts, outline=col, width=w)
+    for x in (size // 2, 0, size):
+        d.line([(x, 0), (x, size)], fill=soft, width=2)
+        d.line([(0, x), (size, x)], fill=soft, width=2)
+    im.save(out_path)
+    return out_path
+
+
 def ornament(settings, idea, t, out_path):
     """نقشة خفيفة يولّدها Gemini تُستخدم في الحواف فقط"""
     from google.genai import types

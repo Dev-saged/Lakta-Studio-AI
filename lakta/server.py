@@ -50,7 +50,7 @@ class App:
                 "fonts": sorted(p.name for p in self.env.fonts.glob("*") if p.suffix.lower() in (".ttf", ".otf")),
                 "music": sorted(p.name for p in self.env.music.glob("*") if p.suffix.lower() in UPLOADS["music"][0]),
                 "cookies": "file" if (self.env.assets / "youtube_cookies.txt").exists() else ("secret" if ingest.cookies_path(self.env) else ""),
-                "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "clip": CONFIG["clip"],
+                "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "clip": CONFIG["clip"], "trash_days": CONFIG["trash"]["days"],
                 "version": ver, "jobs": jobs}
 
     def create_jobs(self, body):
@@ -299,7 +299,9 @@ def handler(app):
                 body = self._body()
                 if path == "/api/jobs":
                     return self._json({"ids": app.create_jobs(body)})
-                m = re.fullmatch(r"/api/jobs/([\w\-]+)/(cancel|retry|delete|telegram)", path)
+                if path == "/api/trash/empty":
+                    return self._json({"count": app.store.purge_expired(0)})
+                m = re.fullmatch(r"/api/jobs/([\w\-]+)/(cancel|retry|delete|restore|purge|telegram)", path)
                 if m:
                     return self._json(self._job_action(*m.groups()))
                 if path == "/api/settings":
@@ -338,10 +340,10 @@ def handler(app):
                         app.settings.update({"brand": {kind: ""}})
                     return self._json(app.state())
                 self._err("غير موجود", 404)
-            except (ValueError, RuntimeError, KeyError) as e:
+            except (ValueError, KeyError) as e:
                 self._err(str(e))
             except Exception as e:
-                self._err(f"خطأ: {str(e)[:300]}", 500)
+                self._err(director.friendly(e), 500 if not isinstance(e, RuntimeError) else 400)
 
         def _template(self, act, body):
             st, env = app.settings, app.env
@@ -355,16 +357,27 @@ def handler(app):
                     raise ValueError("اكتب فكرتك أولاً")
                 if not st.get("gemini_key"):
                     raise ValueError("التصميم بالذكاء الاصطناعي يحتاج مفتاح Gemini")
-                spec = templates.design(st, idea)
+                try:
+                    spec = templates.design(st, idea)
+                except Exception as e:
+                    raise ValueError(director.friendly(e))
                 cur = templates.tpl_conf(brand)
                 st.update({"brand": {"template": {"accent": spec["accent"], "base": spec["base"], "ink": spec["ink"],
                                                   "mood": spec["mood"], "cta_ai": spec["cta"], "idea": idea,
                                                   "style": cur["style"] if cur["style"] in templates.STYLES else spec["style"]}}})
             elif act == "ornament":
-                if not st.get("gemini_key"):
-                    raise ValueError("الزخرفة تحتاج مفتاح Gemini")
                 t = templates.tpl_conf(brand)
-                templates.ornament(st, t["idea"] or t["mood"] or "elegant", t, env.assets / "ornament.png")
+                notice = None
+                try:
+                    if not st.get("gemini_key"):
+                        raise RuntimeError("no key")
+                    templates.ornament(st, t["idea"] or t["mood"] or "elegant", t, env.assets / "ornament.png")
+                    source = "ai"
+                except Exception as e:
+                    templates.geometric(t, env.assets / "ornament.png")
+                    source = "geometric"
+                    notice = (director.friendly(e, "image") if st.get("gemini_key") else "لا يوجد مفتاح Gemini") + \
+                        " · استخدمتُ زخرفة هندسية بألوان هويتك بدلاً منها."
                 st.update({"brand": {"template": {"ornament": True}}})
             elif act != "previews":
                 raise ValueError("إجراء غير معروف")
@@ -372,7 +385,9 @@ def handler(app):
             out.mkdir(parents=True, exist_ok=True)
             names = templates.previews(env, st.data["brand"], font, out)
             v = int(time.time() * 1000) % 10**8
-            return {"settings": st.public(), "ornament": (env.assets / "ornament.png").exists(),
+            extra = {"notice": notice, "source": source} if act == "ornament" else \
+                {"spec": {k: st.data["brand"]["template"][k] for k in ("mood", "cta_ai", "style")}} if act == "design" else {}
+            return {**extra, "settings": st.public(), "ornament": (env.assets / "ornament.png").exists(),
                     "previews": {k: f"/cache/tplprev/{n}?v={v}" for k, n in names.items()}}
 
         def _job_action(self, jid, act):
@@ -382,8 +397,15 @@ def handler(app):
             if act == "cancel":
                 app.worker.stop(jid)
             elif act == "delete":
+                app.worker.trash(jid)
+                return {"msg": "نُقلت إلى سلة المهملات"}
+            elif act == "restore":
+                app.store.restore(jid)
+                return {"msg": "استُعيدت المهمة"}
+            elif act == "purge":
                 if not app.store.delete(jid):
-                    raise ValueError("أوقف المهمة قبل حذفها")
+                    raise ValueError("المهمة ما زالت تتوقف · حاول بعد ثوانٍ")
+                return {"msg": "حُذفت نهائياً"}
             elif act == "retry":
                 o = job["opts"]
                 new = app.store.add(job["label"], o, steps_for(o))
