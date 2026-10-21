@@ -350,6 +350,11 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 @keyframes eq{to{height:100%}}
 .player{display:grid;gap:var(--s3)}
 .player video{width:100%;max-height:56dvh;border-radius:var(--r);background:#000;border:1.5px solid var(--ink)}
+.covers{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s2)}
+.covers.wide{grid-template-columns:1fr 1fr}
+.covers a{display:grid;gap:4px;text-decoration:none;color:var(--muted);font-size:var(--t-xs);text-align:center}
+.covers img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:var(--r);border:1px solid var(--line)}
+.covers.wide img{aspect-ratio:16/9}
 .copybox{display:grid;gap:6px;padding:var(--s3);border:1px solid var(--line);border-radius:var(--r)}
 .copybox p{margin:0;font-size:var(--t-s);white-space:pre-wrap;overflow-wrap:anywhere;max-height:8lh;overflow:auto}
 .copybox header{display:flex;align-items:center;gap:var(--s2)}
@@ -1159,6 +1164,8 @@ function openClip(j, i, fmt) {
     </div>
     <div class="copybox"><header><span class="lbl">العنوان</span><button class="icb" data-copy="t" aria-label="نسخ العنوان"><svg class="ic"><use href="#i-copy"/></svg></button></header><p>${esc(c.full_title || c.title)}</p></div>
     <div class="copybox"><header><span class="lbl">الوصف</span><button class="icb" data-copy="d" aria-label="نسخ الوصف"><svg class="ic"><use href="#i-copy"/></svg></button></header><p>${esc(c.desc || "")}</p></div>
+    ${(c.covers?.[fmt] || []).length ? `<div class="field"><span class="lbl">الأغلفة · اضغط للتنزيل</span>
+      <div class="covers ${fmt}">${c.covers[fmt].map((p, k) => `<a href="${url(p)}?dl=1" aria-label="تنزيل الغلاف ${ar(k + 1)}"><img src="${url(p)}" alt="" loading="lazy"><span>${["بطل", "منقسم", "بارز"][k] || ar(k + 1)}</span></a>`).join("")}</div></div>` : ""}
     <div class="acts">
       <a class="btn ghost" href="${url(f[fmt])}?dl=1"><svg class="ic"><use href="#i-download"/></svg>الفيديو</a>
       ${f["thumb_" + fmt] ? `<a class="btn ghost" href="${url(f["thumb_" + fmt])}?dl=1"><svg class="ic"><use href="#i-download"/></svg>الغلاف</a>` : ""}
