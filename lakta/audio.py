@@ -133,3 +133,33 @@ def mix(mode, out, dur, orig=None, voice=None, bg=None, music=None, cancel=None,
         fc[0] = fc[0].replace(",asplit=2[v][key]", "[v]")
     run(FF + inputs + ["-filter_complex", ";".join(fc), "-map", "[a]", "-t", f"{dur:.3f}", "-ac", "2", str(out)], cancel=cancel)
     return out
+
+
+# مؤثرات صوتية مولّدة محلياً (بدون حقوق): نفخة انتقال ونقرة للكلمات المفتاحية
+SFX = {"whoosh": "anoisesrc=color=pink:d=0.5:a=0.6,highpass=f=300,lowpass=f=6000,afade=t=in:d=0.32:curve=exp,afade=t=out:st=0.32:d=0.18,volume=0.55",
+       "pop": "sine=f=1100:d=0.09,afade=t=in:d=0.004,afade=t=out:st=0.012:d=0.078,volume=0.32"}
+
+
+def _sfx_file(kind, assets):
+    p = Path(assets) / f"sfx_{kind}.wav"
+    if not p.exists():
+        run(FF + ["-f", "lavfi", "-i", SFX[kind], "-ar", "48000", "-ac", "2", str(p)])
+    return p
+
+
+def add_sfx(mix_wav, out, events, assets, cancel=None):
+    """events: [(kind, ثانية)] تُدمج فوق المزيج النهائي مع محدِّد ذروة"""
+    if not events:
+        return mix_wav
+    inputs, fc = ["-i", str(mix_wav)], []
+    for k, (kind, t) in enumerate(events, 1):
+        ms = max(0, int(t * 1000))
+        inputs += ["-i", str(_sfx_file(kind, assets))]
+        fc.append(f"[{k}:a]adelay={ms}|{ms}[s{k}]")
+    fc.append("[0:a]" + "".join(f"[s{k}]" for k in range(1, len(events) + 1)) +
+              f"amix=inputs={len(events) + 1}:duration=first:normalize=0,alimiter=limit=0.95[a]")
+    try:
+        run(FF + inputs + ["-filter_complex", ";".join(fc), "-map", "[a]", "-ar", "48000", "-ac", "2", str(out)], cancel=cancel)
+        return out
+    except RuntimeError:
+        return mix_wav

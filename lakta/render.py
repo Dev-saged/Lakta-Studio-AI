@@ -14,7 +14,7 @@ def hex_color(c):
 
 def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fonts_dir, brand, watermark,
          crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None, edl=None, codec="h264",
-         look=None, fill=False):
+         look=None, fill=False, fx=None):
     """template: قالب PNG مرفوع · tpl: قالب مولَّد {static, prog, cta}"""
     W, H = SIZES[(fmt, 720 if int(res) <= 720 else 1080)]
     D = f"{out_dur:.3f}"
@@ -36,6 +36,10 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black")
     v += enhance_filters(quality, look.get("grade"), look.get("grain")) + ["setsar=1"]
     post = [f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
+    if (fx or {}).get("flash") is not None:
+        # وميض انتقال عند نهاية الافتتاحية
+        t = float(fx["flash"])
+        post.append(f"eq=brightness=0.32:contrast=1.1:enable='between(t,{max(0.0, t - 0.05):.3f},{t + 0.09:.3f})'")
     overlay_png = template or (tpl or {}).get("static")
     if brand.get("frame_on") and not overlay_png:
         t = max(8, W // 50)
