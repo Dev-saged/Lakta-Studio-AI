@@ -160,6 +160,9 @@ class Pipeline:
             mix = audio.mix(a["mode"], work / f"mix_{i}.wav", p["out_dur"], orig=p["orig"], voice=p.get("voice"),
                             bg=p.get("bg"), music=music if music and music.exists() else None, cancel=cancel,
                             clean=st.get("voice_clean") is not False)
+            fx = _fx(p, c.get("keywords"), speed)
+            if (opts.get("edit") or {}).get("sfx", True):
+                mix = audio.add_sfx(mix, work / f"mixfx_{i}.wav", fx["sfx"], env.assets, cancel)
             crop = None
             if "short" in fmts:
                 crop = reframe.plan(src["path"], p["s"], p["dur_src"], meta["width"], meta["height"], env.assets, log) if opts.get("face") \
@@ -183,7 +186,7 @@ class Pipeline:
                 job.note(f"اللقطة {n} · {'شورتس' if fmt == 'short' else 'عريض'}")
                 W, H = render.SIZES[(fmt, 720 if res <= 720 else 1080)]
                 ass = captions.build(work / f"cap_{i}_{fmt}.ass", p["words"], p["out_dur"], W, H, brand, family,
-                                     c["hook"] if opts.get("hook") else None)
+                                     c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"))
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
@@ -191,7 +194,7 @@ class Pipeline:
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
                             progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
                             edl=p.get("edl"), codec=st.get("codec"),
-                            look={"grade": st.get("grade"), "grain": st.get("grain")}, fill=opts.get("short_fill"))
+                            look={"grade": st.get("grade"), "grain": st.get("grain")}, fill=opts.get("short_fill"), fx=fx)
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)
@@ -230,6 +233,22 @@ def _gen_thumb(env, brand, fmt, font_file, work):
     p = work / f"tpl_thumb_{fmt}.png"
     img.save(p)
     return p
+
+
+def _fx(p, keywords, speed):
+    """وميض ونفخة عند نهاية الافتتاحية + نقرات على الكلمات المفتاحية (5 كحد أقصى بفاصل 2.5ث)"""
+    edl = p.get("edl") or {}
+    flash = (edl["abs"][0][1] - edl["abs"][0][0]) / speed if edl.get("cold") else None
+    sfx = [("whoosh", max(0.0, flash - 0.32))] if flash else []
+    kws = {captions._norm(k) for k in (keywords or [])} - {""}
+    last = -9.0
+    for w in p.get("words") or []:
+        if len(sfx) >= 6 or captions._norm(w["w"]) not in kws:
+            continue
+        if w["s"] - last >= 2.5 and (flash is None or abs(w["s"] - flash) > 0.8):
+            sfx.append(("pop", w["s"]))
+            last = w["s"]
+    return {"flash": flash, "sfx": sfx}
 
 
 def _template(env, brand, fmt):
