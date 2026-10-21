@@ -287,10 +287,16 @@ def encoder_args(profile=None, force_cpu=False, codec="h264"):
             "-x264-params", "aq-mode=3:aq-strength=0.9:deblock=-1,-1:psy-rd=1.0,0.15", *common]
 
 
-def enhance_filters(profile=None):
-    """تحسين حدة وتباين خفيف بعد التحجيم"""
+def enhance_filters(profile=None, grade="none", grain=False):
+    """تحسين حدة وتباين خفيف بعد التحجيم + تلوين وحبيبات فيلم اختيارية"""
     q = CONFIG["quality"].get(profile) or CONFIG["quality"]["balanced"]
-    return ["unsharp=5:5:0.55:3:3:0.0", "eq=contrast=1.03:saturation=1.07"] if q["enhance"] else []
+    f = ["unsharp=5:5:0.55:3:3:0.0", "eq=contrast=1.03:saturation=1.07"] if q["enhance"] else []
+    g = (CONFIG["grades"].get(grade) or {}).get("vf")
+    if g:
+        f.append(g)
+    if grain:
+        f.append("noise=c0s=5:c0f=t+u")
+    return f
 
 
 def filter_path(p):

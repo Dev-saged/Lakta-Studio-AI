@@ -41,6 +41,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Smart edit only in original-audio mode: video uses split/trim/concat (zoom per segment), audio cuts only at real cuts
 - Bundled fonts are static instances named 'Lakta <Family>' (unique family for libass); downloads saved as Google-<Family>.ttf
 - Codec option h264|hevc (hvc1 tag, MP4); encoder fallbacks: same codec on CPU, then H.264
+- Look: CONFIG.grades ffmpeg chains + optional grain; voice cleanup chains in audio.mix (original vs TTS); short_fill = blurred background
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
