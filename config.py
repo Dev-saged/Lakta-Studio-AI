@@ -8,6 +8,8 @@ CONFIG = {
         "tts": "gemini-3.8-flash-tts",
         "text_pattern": r"^gemini-(\d+(?:\.\d+)?)-flash$",
         "tts_pattern": r"^gemini-(\d+(?:\.\d+)?)-flash(?:-preview)?-tts$",
+        "image": "gemini-2.5-flash-image",
+        "image_pattern": r"^gemini-(\d+(?:\.\d+)?)-flash(?:-preview)?-image(?:-preview)?$",
     },
     "whisper": {
         "fast": {"gpu": "small", "cpu": "small"},
@@ -17,6 +19,7 @@ CONFIG = {
     "clip": {"min": 25, "max": 75, "target": "40-60", "max_parts": 3},
     "limits": {"upload_mb": 4096, "font_mb": 20, "image_mb": 10, "music_mb": 50, "json_kb": 512},
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},
+    "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
     "dialects": {
         "original": {"label": "لهجة المتكلم", "prompt": ""},
         "msa": {"label": "فصحى", "prompt": "العربية الفصحى المبسطة"},
@@ -43,6 +46,11 @@ CONFIG = {
             "caption_style": "classic", "words": 4, "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",
             "frame_short": "", "frame_wide": "",
+            "template": {
+                "style": "none", "accent": "#C9A24A", "base": "#0E1B3D", "ink": "#F6EBD0", "mood": "", "idea": "",
+                "handle": "", "show_handle": True, "show_part": True, "show_prog": True, "show_cta": True,
+                "cta_mode": "default", "cta_custom": "", "cta_ai": "", "ornament": False,
+            },
         },
         "job": {
             "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False,

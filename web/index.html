@@ -280,6 +280,21 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .tpl{flex:none;border:1px solid var(--line);border-radius:4px;background:repeating-conic-gradient(var(--surface-2) 0 25%,var(--surface) 0 50%) 0 0/8px 8px}
 .tpl.on{background:var(--tp) center/cover no-repeat,var(--surface-2)}
 .tpl.short{width:27px;height:48px}.tpl.wide{width:48px;height:27px}
+.tpl-spec{display:flex;flex-wrap:wrap;gap:var(--s3);align-items:center}
+.tpl-sw{display:flex;align-items:center;gap:6px;font-size:var(--t-xs);color:var(--muted);cursor:pointer}
+.tpl-gallery{display:grid;grid-auto-flow:column;grid-auto-columns:30%;gap:var(--s3);overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:calc(var(--s4) * -1);padding:4px var(--s4) 8px;scrollbar-width:none}
+.tpl-gallery::-webkit-scrollbar{display:none}
+.tpl-opt{display:grid;gap:6px;border:0;background:none;padding:0;cursor:pointer;scroll-snap-align:start;text-align:center}
+.tpl-opt .f916{display:block;border-width:1px;border-color:var(--line);transition:box-shadow .25s var(--ease),translate .25s var(--ease)}
+.tpl-opt img,.tpl-wide img{position:absolute;inset:0;width:100%;height:100%;z-index:2;object-fit:cover}
+.tpl-opt img:not([src]),.tpl-wide img:not([src]){display:none}
+.tpl-opt[aria-pressed="true"] .f916{border:1.5px solid var(--ink);box-shadow:4px 4px 0 var(--accent);translate:-2px -2px}
+.tpl-opt b{font:600 var(--t-xs)/1.3 var(--f-body)}
+.tpl-none{display:grid!important;place-items:center;color:oklch(1 0 0 / .8)}
+.tpl-none .ic{position:relative;z-index:2;width:28px;height:28px}
+.tpl-wide{aspect-ratio:16/9;max-width:100%;border-radius:var(--r);position:relative;overflow:hidden;border:1.5px solid var(--ink);background:linear-gradient(170deg,oklch(.45 .07 235),oklch(.26 .05 262) 58%,oklch(.34 .08 45))}
+.tpl-wide.ph::before{content:"";position:absolute;inset:14% 36% 34%;border-radius:50%;background:oklch(.6 .05 55 / .5);filter:blur(2px)}
+#tpl-card.busy .tpl-gallery,#tpl-card.busy .tpl-wide{opacity:.45;filter:blur(1.5px);transition:.3s}
 .wmrow{display:flex;gap:var(--s3);align-items:start;flex-wrap:wrap}
 .wm{width:112px;flex:none;aspect-ratio:16/10;border:1px solid var(--line);border-radius:var(--r);display:grid;place-items:center;background:repeating-conic-gradient(var(--surface-2) 0 25%,var(--surface) 0 50%) 0 0/12px 12px;overflow:hidden}
 .wm img{max-width:80%;max-height:80%;object-fit:contain}
@@ -385,6 +400,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
   <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v5h5"/></symbol>
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
   <symbol id="i-cookie" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 3 3 0 0 1-3-3 3 3 0 0 1-3-3 3 3 0 0 1-3-3z"/><circle cx="9" cy="12" r="1"/><circle cx="14" cy="15" r="1"/><circle cx="9" cy="16.5" r="1"/></symbol>
 </svg>
 
@@ -494,7 +510,49 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <h1 class="h1">الهوية البصرية</h1>
         <p class="sub">تُطبَّق على كل اللقطات والأغلفة الجديدة · تُحفظ تلقائياً</p>
       </header>
-      <section class="card" style="--i:1">
+      <section class="sheet" style="--i:1" id="tpl-card">
+        <h2 class="h2"><svg class="ic"><use href="#i-spark"/></svg>مولّد القوالب</h2>
+        <p class="sub">صِف هوية قناتك، ويصمم لك قالباً بألوانها في أطراف الشاشة فقط، فلا يغطي الوجه ولا الترجمة.</p>
+        <label class="inp" for="tpl-idea"><textarea id="tpl-idea" rows="2" placeholder="مثال: قناة بودكاست ريادة أعمال، طابع فخم وهادئ، كحلي وذهبي"></textarea></label>
+        <div class="chips" role="group" aria-label="أفكار سريعة" id="tpl-ideas">
+          <button type="button" class="chip" data-idea="قناة بودكاست ريادة أعمال، طابع فخم وهادئ، كحلي وذهبي" data-c="#C9A24A,#0E1B3D,#F6EBD0">فخم كحلي وذهبي</button>
+          <button type="button" class="chip" data-idea="قناة تقنية شبابية، حيوية وجريئة، أسود وأخضر نيون" data-c="#3DF58A,#0B0F0D,#E9FFF1">تقني نيون</button>
+          <button type="button" class="chip" data-idea="قناة دينية ومواعظ، هادئة ومريحة، أبيض وفيروزي" data-c="#2BB3A3,#0D3B3A,#F2FBF9">هادئ فيروزي</button>
+          <button type="button" class="chip" data-idea="قناة رياضة وتحفيز، طاقة عالية، أحمر وأسود" data-c="#FF3B30,#121212,#FFFFFF">رياضي ناري</button>
+        </div>
+        <button type="button" class="btn" id="tpl-design"><svg class="ic"><use href="#i-spark"/></svg>صمّم بالذكاء الاصطناعي</button>
+        <p class="note" id="tpl-key-note" hidden><svg class="ic"><use href="#i-key"/></svg>التصميم بالذكاء الاصطناعي يحتاج مفتاح Gemini · الأفكار السريعة تعمل بدونه</p>
+        <div class="tpl-spec">
+          <label class="tpl-sw"><input type="color" id="tpl-accent"><span>الأساسي</span></label>
+          <label class="tpl-sw"><input type="color" id="tpl-base"><span>العمق</span></label>
+          <label class="tpl-sw"><input type="color" id="tpl-ink"><span>النص</span></label>
+          <span class="tag" id="tpl-mood" hidden></span>
+        </div>
+        <span class="lbl">النمط</span>
+        <div class="tpl-gallery" role="group" aria-label="نمط القالب" id="tpl-styles">
+          <button type="button" class="tpl-opt" data-v="none"><span class="f916 ph tpl-none"><svg class="ic"><use href="#i-x"/></svg></span><b>بدون قالب</b></button>
+          <button type="button" class="tpl-opt" data-v="cinema"><span class="f916 ph"><img alt=""></span><b>سينمائي</b></button>
+          <button type="button" class="tpl-opt" data-v="bar"><span class="f916 ph"><img alt=""></span><b>الشريط العلوي</b></button>
+          <button type="button" class="tpl-opt" data-v="corners"><span class="f916 ph"><img alt=""></span><b>الزوايا</b></button>
+          <button type="button" class="tpl-opt" data-v="poster"><span class="f916 ph"><img alt=""></span><b>الملصق</b></button>
+        </div>
+        <div class="tpl-wide ph" id="tpl-wide"><img alt="معاينة العريض"></div>
+        <p class="note" id="tpl-upload-note" hidden><svg class="ic"><use href="#i-upload"/></svg>لديك قالب PNG مرفوع، وهو يتقدّم على القالب المولَّد لنفس المقاس</p>
+        <div class="field"><label for="tpl-handle">اسم القناة أو المعرّف</label><input class="box" id="tpl-handle" dir="auto" placeholder="@yourchannel" maxlength="40"></div>
+        <div class="field"><span class="lbl">عناصر القالب</span>
+          <div class="chips" role="group" aria-label="عناصر القالب" id="tpl-els">
+            <button type="button" class="chip" data-el="show_handle">اسم القناة</button>
+            <button type="button" class="chip" data-el="show_part">رقم الجزء</button>
+            <button type="button" class="chip" data-el="show_prog">شريط التقدم</button>
+            <button type="button" class="chip" data-el="show_cta">عبارة الدعوة</button>
+          </div></div>
+        <div class="field" id="tpl-cta-wrap"><span class="lbl">عبارة الدعوة · آخر ٣ ثوانٍ</span>
+          <div class="seg sm" id="tpl-cta"><button type="button" data-v="default">تابع للمزيد</button><button type="button" data-v="custom">عبارتي</button><button type="button" data-v="ai">اقتراح Gemini</button></div>
+          <input class="box" id="tpl-cta-custom" placeholder="مثال: الحلقة كاملة في القناة" maxlength="28" hidden>
+          <p class="note" id="tpl-cta-ai" hidden></p></div>
+        <div class="row"><div><b>زخرفة بالذكاء الاصطناعي</b><small id="tpl-orn-note">نقشة خفيفة يولّدها Gemini في الحواف فقط</small></div><input type="checkbox" class="sw" id="tpl-orn" aria-label="زخرفة بالذكاء الاصطناعي"></div>
+      </section>
+      <section class="card" style="--i:2">
         <h2 class="h2"><svg class="ic"><use href="#i-type"/></svg>نمط الترجمة</h2>
         <div class="brand-prev" id="cap-prev">
           <div class="f916 ph"><p class="hook">هل تعرف السبب؟</p><p class="kara" id="brand-kara"></p></div>
@@ -1126,8 +1184,75 @@ function initBrand() {
       t.style.setProperty("--tp", b[k] ? `url('/assets/${encodeURIComponent(b[k])}?v=${Date.now() % 1e5}')` : "none");
       $(`[data-del-tpl="${k}"]`, row).hidden = !b[k];
     }
-    $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل" }[b.caption_style], b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark ? "علامة مائية" : "بدون شعار"].join(" · ");
+    $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل" }[b.caption_style], b.template.style !== "none" ? "قالب " + ({ cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" })[b.template.style] : b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark ? "علامة مائية" : "بدون شعار"].join(" · ");
   }, S.state);
+}
+
+// ===== مولّد القوالب =====
+function initTemplates() {
+  const T = () => S.state().settings.brand.template;
+  const card = $("#tpl-card");
+  const refresh = debounce(async () => {
+    card.classList.add("busy");
+    try { const r = await api("/api/template/previews", {}); applyTpl(r); } catch (e) { fail(e); }
+    finally { card.classList.remove("busy"); }
+  }, 500);
+  const applyTpl = r => { S.state.set({ ...S.state(), settings: r.settings }); tplPrev = r.previews; paintPrev(); };
+  let tplPrev = {};
+  const setTpl = async patch => {
+    const st = S.state(); const template = { ...st.settings.brand.template, ...patch };
+    S.state.set({ ...st, settings: { ...st.settings, brand: { ...st.settings.brand, template } } });
+    try { await api("/api/settings", { brand: { template: patch } }); refresh(); } catch (e) { fail(e); }
+  };
+  const ps = bindGroup("#tpl-styles", () => T().style, v => setTpl({ style: v }));
+  const pc = bindGroup("#tpl-cta", () => T().cta_mode, v => setTpl({ cta_mode: v }));
+  $("#tpl-els").addEventListener("click", e => { const b = e.target.closest("[data-el]"); if (b) { setTpl({ [b.dataset.el]: !T()[b.dataset.el] }); buzz(5); } });
+  for (const k of ["accent", "base", "ink"]) $(`#tpl-${k}`).addEventListener("change", e => setTpl({ [k]: e.target.value.toUpperCase() }));
+  $("#tpl-handle").addEventListener("change", e => setTpl({ handle: e.target.value.trim() }));
+  $("#tpl-cta-custom").addEventListener("change", e => setTpl({ cta_custom: e.target.value.trim() }));
+  $("#tpl-ideas").addEventListener("click", e => {
+    const b = e.target.closest("[data-idea]"); if (!b) return;
+    const [accent, base, ink] = b.dataset.c.split(",");
+    $("#tpl-idea").value = b.dataset.idea;
+    setTpl({ idea: b.dataset.idea, accent, base, ink, style: T().style === "none" ? "cinema" : T().style }); buzz(5);
+  });
+  $("#tpl-design").addEventListener("click", async () => {
+    const btn = $("#tpl-design"), idea = $("#tpl-idea").value.trim();
+    btn.disabled = true; card.classList.add("busy");
+    try { const r = await api("/api/template/design", { idea }); applyTpl(r); toast("صُمّمت الهوية · اختر النمط"); buzz([10, 40, 10]); }
+    catch (e) { fail(e); } finally { btn.disabled = false; card.classList.remove("busy"); }
+  });
+  $("#tpl-orn").addEventListener("change", async e => {
+    if (!e.target.checked) return setTpl({ ornament: false });
+    card.classList.add("busy"); $("#tpl-orn-note").textContent = "جاري توليد الزخرفة…";
+    try { const r = await api("/api/template/ornament", {}); applyTpl(r); toast("وُلّدت الزخرفة"); }
+    catch (err) { e.target.checked = false; fail(err); } finally { card.classList.remove("busy"); $("#tpl-orn-note").textContent = "نقشة خفيفة يولّدها Gemini في الحواف فقط"; }
+  });
+  function paintPrev() {
+    $$("#tpl-styles [data-v]").forEach(b => { const img = $("img", b); if (img && tplPrev[b.dataset.v]) img.src = tplPrev[b.dataset.v]; });
+    if (tplPrev.wide) $("#tpl-wide img").src = tplPrev.wide;
+  }
+  effect(() => {
+    const st = S.state(); if (!st) return; const t = st.settings.brand.template, b = st.settings.brand;
+    ps(); pc();
+    for (const k of ["accent", "base", "ink"]) $(`#tpl-${k}`).value = t[k];
+    if (document.activeElement !== $("#tpl-handle")) $("#tpl-handle").value = t.handle;
+    if (document.activeElement !== $("#tpl-cta-custom")) $("#tpl-cta-custom").value = t.cta_custom;
+    if (!$("#tpl-idea").value && t.idea) $("#tpl-idea").value = t.idea;
+    $("#tpl-mood").hidden = !t.mood; $("#tpl-mood").textContent = t.mood ? `الطابع: ${t.mood}` : "";
+    $$("#tpl-els [data-el]").forEach(x => x.setAttribute("aria-pressed", String(!!t[x.dataset.el])));
+    $("#tpl-cta-wrap").hidden = !t.show_cta;
+    $("#tpl-cta-custom").hidden = t.cta_mode !== "custom";
+    $("#tpl-cta-ai").hidden = t.cta_mode !== "ai";
+    $("#tpl-cta-ai").textContent = t.cta_ai ? `اقتراح Gemini: «${t.cta_ai}»` : "صمّم بالذكاء الاصطناعي أولاً ليقترح عبارة تناسب فكرتك";
+    $("#tpl-orn").checked = !!t.ornament;
+    $("#tpl-wide").hidden = t.style === "none";
+    $("#tpl-upload-note").hidden = !(b.frame_short || b.frame_wide);
+    $("#tpl-design").disabled = !st.settings.gemini_key.set;
+    $("#tpl-key-note").hidden = st.settings.gemini_key.set;
+    $("#tpl-orn").disabled = !st.settings.gemini_key.set && !t.ornament;
+  }, S.state);
+  refresh();
 }
 
 // ===== الإعدادات =====
@@ -1228,7 +1353,7 @@ async function boot() {
   document.title = st.app.full_name;
   const draft = store.get(CONFIG.draftKey, null), base = defaultForm(st);
   S.form.set(draft ? { ...base, ...draft, file: null, audio: { ...base.audio, ...draft.audio }, formats: { ...base.formats, ...draft.formats } } : base);
-  if (!booted) { booted = true; initStudio(); initVoice(); initJobs(); initLibrary(); initBrand(); initPrefs(); checkUpdate(st.app.version); }
+  if (!booted) { booted = true; initStudio(); initVoice(); initJobs(); initLibrary(); initBrand(); initTemplates(); initPrefs(); checkUpdate(st.app.version); }
   listen();
   go(location.hash.slice(1) || "studio");
 }
