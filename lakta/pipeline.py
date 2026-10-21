@@ -158,7 +158,8 @@ class Pipeline:
             c = p["c"]
             n = c["n"]
             mix = audio.mix(a["mode"], work / f"mix_{i}.wav", p["out_dur"], orig=p["orig"], voice=p.get("voice"),
-                            bg=p.get("bg"), music=music if music and music.exists() else None, cancel=cancel)
+                            bg=p.get("bg"), music=music if music and music.exists() else None, cancel=cancel,
+                            clean=st.get("voice_clean") is not False)
             crop = None
             if "short" in fmts:
                 crop = reframe.plan(src["path"], p["s"], p["dur_src"], meta["width"], meta["height"], env.assets, log) if opts.get("face") \
@@ -189,7 +190,8 @@ class Pipeline:
                             crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
                             progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
-                            edl=p.get("edl"), codec=st.get("codec"))
+                            edl=p.get("edl"), codec=st.get("codec"),
+                            look={"grade": st.get("grade"), "grain": st.get("grain")}, fill=opts.get("short_fill"))
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)

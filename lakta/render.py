@@ -13,18 +13,28 @@ def hex_color(c):
 
 
 def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fonts_dir, brand, watermark,
-         crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None, edl=None, codec="h264"):
+         crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None, edl=None, codec="h264",
+         look=None, fill=False):
     """template: قالب PNG مرفوع · tpl: قالب مولَّد {static, prog, cta}"""
     W, H = SIZES[(fmt, 720 if int(res) <= 720 else 1080)]
     D = f"{out_dur:.3f}"
     v = []
-    if fmt == "short" and crop:
+    look = look or {}
+    src_label = "[0:v]"
+    pre_parts = []
+    if fmt == "short" and fill:
+        # خلفية ضبابية: الإطار العريض كاملاً فوق نسخة مكبّرة ومموّهة منه
+        pre_parts.append(f"[0:v]split[fa][fb];[fa]scale={W // 4}:{H // 4}:force_original_aspect_ratio=increase,crop={W // 4}:{H // 4},"
+                         f"gblur=sigma=12,eq=brightness=-0.07:saturation=1.1,scale={W}:{H}[fbg];[fb]scale={W}:-2:flags=lanczos[ffg];"
+                         f"[fbg][ffg]overlay=(W-w)/2:(H-h)/2-H*0.04[fill]")
+        src_label = "[fill]"
+    elif fmt == "short" and crop:
         keys, cw = crop
         v.append(f"crop=w={cw}:h=ih:x='{reframe.expr(keys)}':y=0")
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
     else:
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black")
-    v += enhance_filters(quality) + ["setsar=1"]
+    v += enhance_filters(quality, look.get("grade"), look.get("grain")) + ["setsar=1"]
     post = [f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
     overlay_png = template or (tpl or {}).get("static")
     if brand.get("frame_on") and not overlay_png:
@@ -37,13 +47,13 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
     if edl and edl.get("segs"):
         # قص وإعادة ترتيب بالمقاطع: صمت محذوف، افتتاحية مكررة، وزوم متناوب
         n = len(edl["segs"])
-        parts = [f"[0:v]{','.join(v)},split={n}" + "".join(f"[e{i}]" for i in range(n))]
+        parts = pre_parts + [f"{src_label}{','.join(v)},split={n}" + "".join(f"[e{i}]" for i in range(n))]
         for i, ((a, b), z) in enumerate(zip(edl["segs"], edl["zoom"])):
             zf = f",crop=iw/{ZOOM}:ih/{ZOOM},scale={W}:{H}:flags=lanczos,setsar=1" if z else ""
             parts.append(f"[e{i}]trim=start={a}:end={b},setpts=PTS-STARTPTS{zf}[c{i}]")
         parts.append("".join(f"[c{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0,{','.join(post)}[v0]")
     else:
-        parts = [f"[0:v]{','.join(v + post)}[v0]"]
+        parts = pre_parts + [f"{src_label}{','.join(v + post)}[v0]"]
 
     def step(chain, label):
         nonlocal cur
