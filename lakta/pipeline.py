@@ -1,8 +1,9 @@
 import json
 import shutil
+from pathlib import Path
 
 from config import CONFIG
-from . import audio, captions, covers, director, edit, ingest, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, captions, covers, director, edit, ingest, package, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram, safe_name
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
@@ -188,7 +189,7 @@ class Pipeline:
                             crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
                             progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
-                            edl=p.get("edl"))
+                            edl=p.get("edl"), codec=st.get("codec"))
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)
@@ -203,14 +204,15 @@ class Pipeline:
 
         # ٧) التغليف والإرسال
         job.step("package")
-        # الملف المضغوط باسم المشروع ليُعرف في تيليجرام والتنزيل
-        zname = f"{safe_name(seo['title'] or src['title'])}.zip"
-        zpath = shutil.make_archive(str(env.outputs / f"{job.id}_pack"), "zip", out)
-        shutil.move(zpath, out / zname)
-        job.set(zip=f"{job.id}/{zname}")
+        # ملف مضغوط باسم المشروع: مجلد لكل جزء بأسماء عربية
+        title = safe_name(seo['title'] or src['title'])
+        items = package.entries(env, job.id, _public(clips))
+        package.write_zip(items, out / f"{title}.zip")
+        job.set(zip=f"{job.id}/{title}.zip")
         if Telegram(st).ready and st.get("telegram_zip"):
             try:
-                job.note(tg.deliver(out / zname, out, f"✅ {seo['title']} · {len(clips)} أجزاء"))
+                job.note(tg.deliver(out / f"{title}.zip", items, title, f"✅ {seo['title']} · {len(clips)} أجزاء", work / "tg",
+                                    _light(work) if st.get("telegram_light") else None))
             except Exception as e:
                 log(f"تعذّر الإرسال لتيليجرام: {str(e)[:160]}")
         log("اكتمل الإنتاج")
@@ -252,4 +254,17 @@ def deliver_again(env, settings, job):
     z = env.outputs / job["zip"] if job.get("zip") else next(iter(sorted(out.glob("*.zip"))), None)
     if not z or not z.exists():
         raise RuntimeError("لا يوجد ملف مضغوط لهذا المشروع")
-    return tg.deliver(z, out, f"✅ {job['seo'].get('title') or job['title']}")
+    work = env.temp / f"tg_{job['id']}"
+    try:
+        return tg.deliver(z, package.entries(env, job["id"], job["clips"]), z.stem,
+                          f"✅ {job['seo'].get('title') or job['title']}", work,
+                          _light(work) if settings.get("telegram_light") else None)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def _light(work):
+    def make(p):
+        work.mkdir(parents=True, exist_ok=True)
+        return render.light_copy(p, work / f"light_{Path(p).name}")
+    return make
