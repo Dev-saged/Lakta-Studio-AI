@@ -2,22 +2,42 @@
 
 Keep under 5KB. No code. Update by 2 lines after every change.
 
-> First session on this repo: generate this file from the current code (sections, key functions, decisions). Do not modify app code while doing so.
-
 ## Files
-- (list each file and its purpose)
-
-## Sections (SECTION markers)
-- (marker name, one-line purpose)
+- run.py: one-cell launcher (deps incl. yt-dlp[default]+deno, env, server, Cloudflare tunnel, --selftest)
+- config.py: CONFIG (app, models + regex patterns, whisper sizes, dialects, voices, template, defaults)
+- lakta/env.py: Kaggle/Colab/VPS paths, secrets (settings → env → Kaggle → Colab), Settings, ffmpeg run/ffprobe, encoder
+- lakta/server.py: stdlib HTTP API, cookie-key auth, chunked SSE, uploads, files with Range
+- lakta/jobs.py: Store (jobs.json), Worker queue, Job progress/notes
+- lakta/pipeline.py: download → transcribe → direct → voice → separate → render → package
+- lakta/ingest.py: yt-dlp with client fallback, cookies (file or YOUTUBE_COOKIES), trend search
+- lakta/transcribe.py: faster-whisper (numpy input, GPU→CPU fallback), VTT fallback, peaks
+- lakta/director.py: Gemini (google-genai) clip picking, SEO, rewrite/dialect, model resolve
+- lakta/voice.py: Edge TTS (word boundaries) and Gemini TTS + whisper alignment
+- lakta/audio.py: segment/atempo, fit, Demucs (torchcodec retry), mix + loudnorm
+- lakta/reframe.py: 9:16 face tracking (YuNet, Haar fallback) → crop expression
+- lakta/captions.py: ASS karaoke (3 styles), hook position per template
+- lakta/render.py: ffmpeg graph: crop/scale, frame or template, ass, progress bar, CTA, watermark
+- lakta/templates.py: template generator (Gemini spec, 4 styles, ornament, CTA)
+- lakta/thumbs.py: thumbnails + posters; lakta/notify.py: Telegram; lakta/tunnel.py: cloudflared
+- web/index.html: single-file RTL UI (studio, jobs, library, brand, prefs, #test, login)
 
 ## Key functions and IDs
-- (names that must be preserved)
+- Pipeline.__call__/_run, steps_for, render.clip, captions.build, templates.build/static/previews
+- API: /api/state, /api/jobs (GET list, POST create), /api/events, /api/upload, /api/template/*
+- UI ids: #job-form, #job-detail, #tpl-card, #cookies-guide; signals S.state, S.jobs, S.sel
 
 ## Decisions
-- (decision, reason)
+- ASS via `ass` filter with shaping=complex and Encoding=-1: only way Arabic shapes and orders correctly in libass
+- Templates drawn procedurally (true alpha); Gemini only designs spec and optional ornament
+- Uploaded PNG template beats generated template per format
+- SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
-- (symptom, root cause, fix)
+- Arabic captions tofu/reversed: subtitles filter + simple shaping → use ass filter, shaping=complex, Encoding=-1
+- Transcribe "open() got an unexpected keyword argument 'metadata_errors'": faster-whisper decode via new PyAV → pass numpy array from our 16k wav
+- Jobs not appearing until refresh (duplicates created): SSE without length/chunking buffered by tunnel → chunked SSE, polling fallback, refresh after submit, duplicate guard
+- YouTube "Sign in to confirm you're not a bot" on Kaggle: deno + client fallback + cookies; clear error with actions
+- Hardcoded Telegram token in code: secrets only
 
 ## Open issues
-- (none)
+- Trash bin for jobs (soft delete + auto purge): plan pending approval

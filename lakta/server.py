@@ -81,7 +81,13 @@ class App:
             links = [l if l.startswith("http") else "https://" + l for l in links]
             if not links or not all(re.match(r"^https?://[\w\-]+(\.[\w\-]+)+(:\d+)?(/[^\s<>\"']*)?$", l) for l in links):
                 raise ValueError("أدخل رابطاً صحيحاً واحداً على الأقل")
+            busy = {j["opts"]["source"].get("url") for j in app_jobs(self.store) if j["status"] in ("queued", "running")}
+            dup = [l for l in links if l in busy]
+            if dup and len(dup) == len(links):
+                raise ValueError("هذا الرابط قيد المعالجة بالفعل · تابعه من شاشة المهام")
             for l in links:
+                if l in busy:
+                    continue
                 made.append(self.store.add(_short_url(l), {**opts, "source": {"type": "link", "url": l}}, steps_for(opts)))
         elif t == "trend":
             kw = str(src.get("keyword", "")).strip()[:120]
@@ -99,6 +105,11 @@ class App:
             raise ValueError("مصدر غير معروف")
         self.worker.kick()
         return [j["id"] for j in made]
+
+
+def app_jobs(store):
+    with store.lock:
+        return [dict(j) for j in store.jobs.values()]
 
 
 def _short_url(u):
@@ -218,6 +229,9 @@ def handler(app):
                     return self._err("غير مصرّح", 401)
                 if path == "/api/state":
                     return self._json(app.state())
+                if path == "/api/jobs":
+                    ver, jobs = app.store.snapshot()
+                    return self._json({"version": ver, "jobs": jobs})
                 if path == "/api/events":
                     return self._events()
                 m = re.fullmatch(r"/api/jobs/([\w\-]+)(/transcript)?", path)
@@ -242,20 +256,24 @@ def handler(app):
                 pass
 
         def _events(self):
+            # ترميز مقطّع (chunked) حتى يمرّر نفق Cloudflare كل حدث فوراً
             self._headers(200, "text/event-stream; charset=utf-8", None,
-                          {"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"})
+                          {"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no", "Transfer-Encoding": "chunked"})
             self.close_connection = True
             ver = -1
+
+            def send(b):
+                self.wfile.write(f"{len(b):X}\r\n".encode() + b + b"\r\n")
+                self.wfile.flush()
             try:
-                self.wfile.write(b": " + b" " * 2048 + b"\n\n")
+                send(b": " + b" " * 2048 + b"\n\nretry: 3000\n\n")
                 while True:
                     cur, jobs = app.store.snapshot()
                     if cur != ver:
                         ver = cur
-                        self.wfile.write(f"event: jobs\ndata: {json.dumps({'version': cur, 'jobs': jobs}, ensure_ascii=False)}\n\n".encode())
+                        send(f"event: jobs\ndata: {json.dumps({'version': cur, 'jobs': jobs}, ensure_ascii=False)}\n\n".encode())
                     else:
-                        self.wfile.write(b": ping\n\n")
-                    self.wfile.flush()
+                        send(b"event: ping\ndata: 1\n\n")
                     app.store.wait(ver, 15)
                     time.sleep(0.5)
             except (BrokenPipeError, ConnectionResetError, OSError):
