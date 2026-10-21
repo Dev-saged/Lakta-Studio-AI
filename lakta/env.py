@@ -73,7 +73,8 @@ class Env:
 
 # ===== الأسرار: الإعدادات ← متغيرات البيئة ← Kaggle Secrets ← Colab =====
 SECRET_ENV = {"gemini_key": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "telegram_token": ("TELEGRAM_TOKEN",),
-              "telegram_chat": ("TELEGRAM_CHAT_ID",), "youtube_cookies": ("YOUTUBE_COOKIES",)}
+              "telegram_chat": ("TELEGRAM_CHAT_ID",), "youtube_cookies": ("YOUTUBE_COOKIES",),
+              "lakta_password": ("LAKTA_PASSWORD",)}
 _secret_cache = {}
 
 

@@ -62,9 +62,18 @@ def _show(url, key, env_name):
     print(f"\n{line}\n  👑 استوديو لقطة يعمل على {env_name}\n  افتح الرابط:  {full}\n  مفتاح الدخول: {key}\n{line}\n", flush=True)
     try:
         from IPython.display import HTML, display
-        display(HTML(f'<div dir="rtl" style="font:16px system-ui;padding:14px 18px;border:2px solid #2b4bd8;border-radius:10px;'
-                     f'display:inline-block">👑 <b>استوديو لقطة جاهز</b> · <a href="{full}" target="_blank" '
-                     f'style="color:#2b4bd8;font-weight:700">افتح الاستوديو</a></div>'))
+        btn = ("border:0;border-radius:8px;padding:10px 16px;font:600 15px system-ui;cursor:pointer;"
+               "background:#2b4bd8;color:#fff;text-decoration:none;display:inline-block")
+        copy = "navigator.clipboard.writeText(this.dataset.v).then(()=>{this.textContent='✓ نُسخ'})"
+        display(HTML(
+            f'<div dir="rtl" style="font:16px system-ui;padding:16px 18px;border:2px solid #2b4bd8;border-radius:12px;'
+            f'display:inline-grid;gap:12px">'
+            f'<b>👑 استوديو لقطة جاهز على {env_name}</b>'
+            f'<div style="display:flex;gap:8px;flex-wrap:wrap"><a href="{full}" target="_blank" style="{btn}">افتح الاستوديو</a>'
+            f'<button style="{btn};background:#0e1b3d" data-v="{full}" onclick="{copy}">نسخ الرابط</button></div>'
+            f'<div>رمز الدخول: <code style="font:700 24px monospace;letter-spacing:2px;user-select:all">{key}</code> '
+            f'<button style="{btn};padding:6px 12px;background:#555" data-v="{key}" onclick="{copy}">نسخ الرمز</button></div>'
+            f'<small style="color:#666">لرمز ثابت دائماً أضف في Secrets: LAKTA_PASSWORD</small></div>'))
     except Exception:
         pass
 
