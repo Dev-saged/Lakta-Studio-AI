@@ -1,5 +1,5 @@
 from config import CONFIG
-from .env import encoder_args, filter_path, run
+from .env import encoder_args, enhance_filters, filter_path, run
 from . import reframe
 
 SIZES = {("short", 1080): (1080, 1920), ("short", 720): (720, 1280), ("wide", 1080): (1920, 1080), ("wide", 720): (1280, 720)}
@@ -12,7 +12,7 @@ def hex_color(c):
 
 
 def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fonts_dir, brand, watermark,
-         crop=None, work=None, cancel=None, progress=None, template=None, tpl=None):
+         crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None):
     """template: قالب PNG مرفوع · tpl: قالب مولَّد {static, prog, cta}"""
     W, H = SIZES[(fmt, 720 if int(res) <= 720 else 1080)]
     D = f"{out_dur:.3f}"
@@ -23,7 +23,7 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
     else:
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black")
-    v += ["setsar=1", f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
+    v += enhance_filters(quality) + ["setsar=1", f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
     overlay_png = template or (tpl or {}).get("static")
     if brand.get("frame_on") and not overlay_png:
         t = max(8, W // 50)
@@ -70,9 +70,18 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
     script = work / f"fc_{out.stem}.txt"
     script.write_text(";".join(parts), "utf-8")
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *inputs, "-filter_complex_script", str(script),
-           "-map", cur, "-map", "1:a", "-t", D, *encoder_args(),
+           "-map", cur, "-map", "1:a", "-t", D, *encoder_args(quality),
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-movflags", "+faststart", str(out)]
-    run(cmd, cancel=cancel, progress=progress, total=out_dur)
+    try:
+        run(cmd, cancel=cancel, progress=progress, total=out_dur)
+    except RuntimeError:
+        # بعض نسخ ffmpeg لا تدعم كل خيارات NVENC: إعادة على المعالج
+        if "h264_nvenc" not in cmd:
+            raise
+        i = cmd.index("-c:v")
+        j = cmd.index("-pix_fmt")
+        cmd[i:j] = encoder_args(quality, force_cpu=True)
+        run(cmd, cancel=cancel, progress=progress, total=out_dur)
     return out
 
 

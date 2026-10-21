@@ -90,8 +90,8 @@ def find_trend(keyword, flt, settings, env, log):
     return f"https://www.youtube.com/watch?v={best['id']}"
 
 
-def download(url, work, settings, env, log, progress, note=None):
-    h = int(settings.get("resolution") or 1080)
+def download(url, work, settings, env, log, progress, note=None, height=None):
+    h = int(height or settings.get("resolution") or 1080)
     last = {"t": 0}
 
     def hook(d):
@@ -106,8 +106,10 @@ def download(url, work, settings, env, log, progress, note=None):
                 note(f"{sp / 2**20:.1f} MB/s" + (f" · باقي {int(eta)}ث" if eta else ""))
 
     extra = {
-        "format": f"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b",
-        "merge_output_format": "mp4", "outtmpl": str(work / "source.%(ext)s"),
+        # فوق 1080 لا يوفر يوتيوب H.264، فنفضّل VP9 لأنه أسرع فكّاً من AV1
+        "format": (f"bv*[height<={h}][vcodec^=vp09]+ba/bv*[height<={h}]+ba/b[height<={h}]/b" if h > 1080 else
+                   f"bv*[height<={h}][ext=mp4]+ba[ext=m4a]/bv*[height<={h}]+ba/b[height<={h}]/b"),
+        "merge_output_format": "mkv" if h > 1080 else "mp4", "outtmpl": str(work / "source.%(ext)s"),
         "writesubtitles": True, "writeautomaticsub": True, "subtitleslangs": ["ar", "ar-orig"], "subtitlesformat": "vtt",
         "progress_hooks": [hook],
         # أجزاء 10MB تتفادى خنق السرعة من يوتيوب
