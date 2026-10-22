@@ -619,6 +619,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
             <div class="field"><span class="lbl">كلمات في كل لقطة</span><div class="seg sm" id="b-words"><button type="button" data-v="2">٢</button><button type="button" data-v="3">٣</button><button type="button" data-v="4">٤</button><button type="button" data-v="5">٥</button></div></div>
           </div>
         </div>
+        <div class="row"><div><b>عبارة الذروة</b><small>أقوى جملة بخط ضخم يملأ الشاشة لثانية · تحتاج Gemini</small></div><input type="checkbox" class="sw" id="b-punch" aria-label="عبارة الذروة"></div>
+        <div class="row"><div><b>منطقة آمنة للمنصات</b><small>الترجمة بعيدة عن أزرار TikTok و Reels و Shorts</small></div><input type="checkbox" class="sw" id="b-safe" aria-label="منطقة آمنة"></div>
+        <div class="row"><div><b>بطاقة عنوان وختام</b><small>عنوان متحرك في البداية ودعوة للمتابعة في النهاية</small></div><input type="checkbox" class="sw" id="b-card" aria-label="بطاقة عنوان وختام"></div>
         <span class="lbl">خط الترجمة والأغلفة</span>
         <div class="fontlist" role="group" aria-label="خط الترجمة" id="b-fonts"></div>
         <div class="field"><label for="gf-name">تنزيل خط من Google Fonts</label>
@@ -1282,6 +1285,7 @@ function initBrand() {
   const pc = bindGroup("#b-colors", () => B().frame_color.toUpperCase(), v => setBrand({ frame_color: v }));
   const pp = bindGroup("#b-pos", () => B().watermark_pos, v => setBrand({ watermark_pos: v }));
   $("#b-frame").addEventListener("change", e => setBrand({ frame_on: e.target.checked }));
+  [["#b-punch", "punch"], ["#b-safe", "safe_zone"], ["#b-card", "title_card"]].forEach(([id, k]) => $(id).addEventListener("change", e => setBrand({ [k]: e.target.checked })));
   $("#b-color-custom").addEventListener("input", debounce(e => setBrand({ frame_color: e.target.value.toUpperCase() }), 200));
   $("#b-fonts").addEventListener("click", async e => {
     const del = e.target.closest("[data-del-font]");
@@ -1311,6 +1315,7 @@ function initBrand() {
     const st = S.state(); if (!st) return; const b = st.settings.brand;
     ps(); pw(); pc(); pp(); pa();
     $("#b-frame").checked = b.frame_on;
+    $("#b-punch").checked = b.punch !== false; $("#b-safe").checked = b.safe_zone !== false; $("#b-card").checked = !!b.title_card;
     $("#b-colors").hidden = !b.frame_on;
     $("#b-color-custom").value = /^#[0-9a-f]{6}$/i.test(b.frame_color) ? b.frame_color : "#E8402A";
     $("#cap-prev").dataset.cap = b.caption_style;

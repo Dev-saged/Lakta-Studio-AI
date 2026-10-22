@@ -166,6 +166,8 @@ class Pipeline:
             mix = audio.mix(a["mode"], work / f"mix_{i}.wav", p["out_dur"], orig=p["orig"], voice=p.get("voice"),
                             bg=p.get("bg"), music=music if music and music.exists() else None, cancel=cancel,
                             clean=st.get("voice_clean") is not False)
+            at = captions.find_phrase(p["words"], c.get("punch")) if brand.get("punch", True) else None
+            p["punch"] = (at[0], at[1], c["punch"]) if at else None
             fx = _fx(p, c.get("keywords"), speed)
             if (opts.get("edit") or {}).get("sfx", True):
                 mix = audio.add_sfx(mix, work / f"mixfx_{i}.wav", fx["sfx"], env.assets, cancel)
@@ -193,7 +195,8 @@ class Pipeline:
                 job.note(f"اللقطة {n} · {'شورتس' if fmt == 'short' else 'عريض'}")
                 W, H = render.SIZES[(fmt, 720 if res <= 720 else 1080)]
                 ass = captions.build(work / f"cap_{i}_{fmt}.ass", p["words"], p["out_dur"], W, H, brand, family,
-                                     c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"))
+                                     c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"),
+                                     extras=_extras(brand, p, c, n, len(plan), fmt, None if opts.get("short_fill") else crop))
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
@@ -252,11 +255,24 @@ def _kw_times(words, c, keywords, gap=2.5):
     return out[:5]
 
 
+def _extras(brand, p, c, n, parts, fmt, crop):
+    """عبارة الذروة، بطاقتا العنوان والختام، وتخطيط الشاشة المقسومة"""
+    ex = {"punch": p.get("punch"), "layout": "split" if fmt == "short" and isinstance(crop, dict) else None}
+    if brand.get("title_card"):
+        tpl = brand.get("template") or {}
+        ex.update(title=c["title"], part=f"الجزء {thumbs.part_word(n)}" if parts > 1 else "")
+        if not (tpl.get("style") not in (None, "none") and tpl.get("show_cta")):
+            ex["outro"] = f"تابع للجزء {thumbs.part_word(n + 1)}" if n < parts else CONFIG["template"]["cta_default"]
+    return ex
+
+
 def _fx(p, keywords, speed):
     """وميض ونفخة عند نهاية الافتتاحية + نقرات على الكلمات المفتاحية (5 كحد أقصى بفاصل 2.5ث)"""
     edl = p.get("edl") or {}
     flash = (edl["abs"][0][1] - edl["abs"][0][0]) / speed if edl.get("cold") else None
     sfx = [("whoosh", max(0.0, flash - 0.32))] if flash else []
+    if p.get("punch") and (flash is None or abs(p["punch"][0] - flash) > 1.0):
+        sfx.append(("whoosh", max(0.0, p["punch"][0] - 0.3)))
     kws = {captions._norm(k) for k in (keywords or [])} - {""}
     last = -9.0
     for w in p.get("words") or []:
