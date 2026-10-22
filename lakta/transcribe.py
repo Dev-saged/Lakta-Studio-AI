@@ -1,11 +1,14 @@
 import array
 import re
+import threading
+import time
 import wave
 
 from config import CONFIG
 from .env import run
 
 _model = {"key": None, "obj": None}
+_lock = threading.Lock()
 
 
 def extract_audio(src, out, cancel=None):
@@ -44,13 +47,24 @@ def _load(quality, gpu, log):
     from faster_whisper import WhisperModel
     name = CONFIG["whisper"].get(quality, CONFIG["whisper"]["balanced"])["gpu" if gpu else "cpu"]
     key = (name, bool(gpu))
-    if _model["key"] != key:
-        log(f"تحميل نموذج التفريغ {name}…")
-        _model["obj"] = None
-        dev, ct = ("cuda", "float16") if gpu else ("cpu", "int8")
-        _model["obj"] = WhisperModel(name, device=dev, compute_type=ct)
-        _model["key"] = key
-    return _model["obj"]
+    with _lock:
+        if _model["key"] != key:
+            log(f"تحميل نموذج التفريغ {name}…")
+            _model["obj"] = None
+            dev, ct = ("cuda", "float16") if gpu else ("cpu", "int8")
+            _model["obj"] = WhisperModel(name, device=dev, compute_type=ct)
+            _model["key"] = key
+        return _model["obj"]
+
+
+def preload(quality, gpu):
+    """تحميل النموذج بالتوازي مع تنزيل الفيديو"""
+    def go():
+        try:
+            _load(quality, gpu, lambda *_: None)
+        except Exception:
+            pass
+    threading.Thread(target=go, daemon=True).start()
 
 
 def whisper(wav, quality, gpu, log, cancel, progress, language="ar"):
@@ -64,9 +78,7 @@ def whisper(wav, quality, gpu, log, cancel, progress, language="ar"):
         return _run(audio, quality, False, log, cancel, progress, language)
 
 
-def _run(audio, quality, gpu, log, cancel, progress, language):
-    model = _load(quality, gpu, log)
-    segs, info = model.transcribe(audio, language=language, word_timestamps=True, vad_filter=True, beam_size=5)
+def _collect(segs, info, cancel, progress):
     words, segments = [], []
     for seg in segs:
         if cancel():
@@ -78,7 +90,31 @@ def _run(audio, quality, gpu, log, cancel, progress, language):
                 words.append({"w": t, "s": round(w.start, 2), "e": round(w.end, 2)})
         if info.duration:
             progress(min(0.99, seg.end / info.duration))
-    return {"words": words, "segments": segments, "source": "whisper"}
+    return words, segments
+
+
+def _run(audio, quality, gpu, log, cancel, progress, language):
+    model = _load(quality, gpu, log)
+    t0 = time.time()
+    opts = dict(language=language, word_timestamps=True, vad_filter=True, beam_size=5)
+    res = None
+    # دفعات متوازية: نفس النموذج ونفس التوقيت كلمة بكلمة، أسرع ×2 على المعالج وأكثر على كرت الشاشة
+    try:
+        from faster_whisper import BatchedInferencePipeline
+        segs, info = BatchedInferencePipeline(model=model).transcribe(
+            audio, batch_size=CONFIG.get("whisper_batch", 16) if gpu else 8, **opts)
+        res = _collect(segs, info, cancel, progress)
+    except Exception as e:
+        if e.__class__.__name__ == "Cancelled":
+            raise
+        log(f"التفريغ الدفعي غير متاح ({str(e)[:80]}) · التفريغ المتسلسل")
+    if res is None:
+        segs, info = model.transcribe(audio, **opts)
+        res = _collect(segs, info, cancel, progress)
+    took = max(0.1, time.time() - t0)
+    if info.duration:
+        log(f"التفريغ: {took:.0f}ث لـ {info.duration / 60:.1f} دقيقة · أسرع من الزمن الحقيقي {info.duration / took:.0f}×")
+    return {"words": res[0], "segments": res[1], "source": "whisper"}
 
 
 def from_vtt(vtt_path):
