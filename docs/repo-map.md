@@ -45,6 +45,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Motion: brand.caption_anim (pop|bounce|none) + styles glow/single; director returns clip keywords → colored in captions (_norm tolerant match)
 - FX: pipeline._fx → flash at cold-open junction (render fx) + synthetic SFX (audio.add_sfx, whoosh/pop cached in assets); job edit.sfx
 - README media in docs/media (cover, icon, live UI screenshots from a demo run, section icons); regenerate screenshots after UI changes
+- Transcribe: BatchedInferencePipeline (batch CONFIG.whisper_batch on GPU, 8 on CPU) with sequential fallback; model preloaded in a thread at job start; speed logged
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
