@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.9.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.10.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -69,7 +69,8 @@ CONFIG = {
         },
         "job": {
             "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False, "short_fill": False,
-            "edit": {"silence": True, "zoom": True, "cold_open": True, "sfx": True},
+            "edit": {"silence": True, "zoom": True, "cold_open": True, "sfx": True, "smooth": True, "scenes": True},
+            "layout": "track",
             "audio": {"mode": "original", "engine": "edge", "text": "same", "dialect": "original",
                       "voice": "ar-SA-HamedNeural", "music": ""},
         },

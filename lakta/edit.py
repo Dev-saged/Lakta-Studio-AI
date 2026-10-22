@@ -54,15 +54,20 @@ def with_cold_open(segs, s, e, hook):
     return [(hs, he)] + segs, True
 
 
-def subdivide(segs, words, every=3.5):
-    """تقسيم المقاطع الطويلة عند الأنفاس القصيرة (بلا حذف) ليتناوب الزوم"""
+def subdivide(segs, words, every=3.5, scenes=()):
+    """تقسيم المقاطع الطويلة عند الأنفاس القصيرة (بلا حذف) ليتناوب الزوم
+    scenes: قطعات الكاميرا الحقيقية تصبح نقاط تبديل الزوم، ولا يقع تبديل قريباً منها"""
     out = []
     for a, b in segs:
-        cuts = [a]
+        cand = [(round(c, 3), True) for c in scenes if a + 0.8 < c < b - 0.8]
         for w1, w2 in zip(words, words[1:]):
             mid = (w1["e"] + w2["s"]) / 2
-            if a < mid < b and w2["s"] - w1["e"] >= 0.12 and mid - cuts[-1] >= every and b - mid >= 1.5:
-                cuts.append(round(mid, 3))
+            if a < mid < b and w2["s"] - w1["e"] >= 0.12 and b - mid >= 1.5 and all(abs(mid - c) > 0.6 for c in scenes):
+                cand.append((round(mid, 3), False))
+        cuts = [a]
+        for c, hard in sorted(cand):
+            if c - cuts[-1] >= (0.8 if hard else every):
+                cuts.append(c)
         cuts.append(b)
         out += list(zip(cuts, cuts[1:]))
     return out
@@ -94,7 +99,7 @@ def remap(words, segs, speed=1.0):
     return out
 
 
-def plan(words, s, e, opts, hook=None):
+def plan(words, s, e, opts, hook=None, scenes=None):
     """قائمة القطع النسبية (من بداية المقطع) + أعلام الزوم"""
     ed = opts.get("edit") or {}
     if not any(ed.get(k) for k in ("silence", "zoom", "cold_open")):
@@ -106,10 +111,12 @@ def plan(words, s, e, opts, hook=None):
     audio_segs = segs
     if ed.get("zoom"):
         inside = [w for w in words if s <= w["s"] < e]
-        segs = segs[:1] + subdivide(segs[1:], inside) if cold else subdivide(segs, inside)
+        sc = [s + t for t in (scenes or [])] if ed.get("scenes", True) else []
+        segs = segs[:1] + subdivide(segs[1:], inside, scenes=sc) if cold else subdivide(segs, inside, scenes=sc)
     z = zooms(segs, cold) if ed.get("zoom") else [False] * len(segs)
     if len(segs) == 1 and not z[0] and abs(segs[0][0] - s) < 0.01 and abs(segs[0][1] - e) < 0.01:
         return None
     rel = lambda ss: [(round(a - s, 3), round(b - s, 3)) for a, b in ss]
     # الصوت يُقص عند القطعات الحقيقية فقط؛ تقسيمات الزوم متصلة فلا تحتاج تلاشياً
-    return {"segs": rel(segs), "abs": segs, "zoom": z, "cold": cold, "audio": rel(audio_segs)}
+    return {"segs": rel(segs), "abs": segs, "zoom": z, "cold": cold, "audio": rel(audio_segs),
+            "smooth": bool(ed.get("zoom") and ed.get("smooth", True))}
