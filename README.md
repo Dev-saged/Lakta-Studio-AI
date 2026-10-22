@@ -13,7 +13,7 @@
 <p align="center"><b>مصنع لقطات قصيرة بالذكاء الاصطناعي.</b> يحوّل الحلقات الطويلة والبودكاست إلى Shorts و Reels ومقاطع يوتيوب عريضة جاهزة للنشر، بواجهة عربية تعمل من المتصفح على Kaggle و Colab و VPS.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-34.8.0-2B4BD8?style=for-the-badge" alt="version">
+  <img src="https://img.shields.io/badge/version-34.12.0-2B4BD8?style=for-the-badge" alt="version">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FFmpeg-engine-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg">
   <img src="https://img.shields.io/badge/Gemini-director-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Gemini">
