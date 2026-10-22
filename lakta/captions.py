@@ -61,8 +61,28 @@ def _hook_top(brand, short):
     return 0.14 if short else 0.08
 
 
-def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None):
-    """ملف ASS: ترجمة كاريوكي كلمة بكلمة + خطاف علوي"""
+def find_phrase(words, phrase):
+    """(بداية، نهاية) أول ظهور للعبارة في الكلمات المنطوقة بمطابقة متسامحة"""
+    toks = [_norm(t) for t in str(phrase or "").split() if _norm(t)]
+    if len(toks) < 2:
+        return None
+    best, at = 0.0, None
+    for i in range(len(words) - len(toks) + 1):
+        win = words[i:i + len(toks)]
+        sc = sum(_norm(w["w"]) == t for w, t in zip(win, toks)) / len(toks)
+        if sc > best:
+            best, at = sc, (win[0]["s"], win[-1]["e"])
+    return at if best >= 0.6 else None
+
+
+def _bgr(hex_rgb, default):
+    return "&H00" + _ass_color(hex_rgb, default)[2:-1]
+
+
+def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None, extras=None):
+    """ملف ASS: ترجمة كاريوكي كلمة بكلمة + خطاف علوي
+    extras: punch=(s,e,نص) عبارة الذروة · title/part بطاقة العنوان · outro بطاقة الختام · layout"""
+    ex = extras or {}
     short = H > W
     size = int(W * 0.096) if short else int(H * 0.078)
     hook_size = int(size * 0.9)
@@ -75,6 +95,13 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None):
         size, margin_v = int(size * 1.55), int(H * (0.33 if short else 0.2))
     tpl = brand.get("template") or {}
     kw_color = _ass_color(tpl.get("accent") if tpl.get("style") not in (None, "none") else "#FF9F1C")
+    side_l = side_r = W // 12
+    if short and brand.get("safe_zone", True):
+        # المنطقة الآمنة: فوق شريط الوصف وبعيداً عن أزرار المنصات على اليمين
+        margin_v, side_r, side_l = max(margin_v, int(H * 0.30)), int(W * 0.14), int(W * 0.07)
+    cap_align = 2
+    if short and ex.get("layout") == "split":
+        cap_align, margin_v = 5, 0
     kws = {_norm(k) for k in (keywords or []) if _norm(k)}
     lines = [
         "[Script Info]", "ScriptType: v4.00+", f"PlayResX: {W}", f"PlayResY: {H}", "WrapStyle: 0",
@@ -82,12 +109,38 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None):
         "[V4+ Styles]",
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, "
         "StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-        f"Style: Cap,{font_family},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},2,{W // 12},{W // 12},{margin_v},-1",
-        f"Style: Hook,{font_family},{hook_size},&H0066FF00,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},8,{W // 12},{W // 12},{int(H * _hook_top(brand, short))},-1",
+        f"Style: Cap,{font_family},{size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},{cap_align},{side_l},{side_r},{margin_v},-1",
+        f"Style: Hook,{font_family},{hook_size},&H0066FF00,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{outline},{outline // 2 + 1},8,{side_l},{side_r},{int(H * _hook_top(brand, short))},-1",
+        f"Style: Punch,{font_family},{int(W * 0.14) if short else int(H * 0.13)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,"
+        f"{outline + 2},{outline // 2 + 2},5,{W // 10},{W // 10},0,-1",
+        f"Style: Card,{font_family},{int(W * 0.085) if short else int(H * 0.08)},{_bgr(tpl.get('ink'), '&HF6EBD0&')},&H00FFFFFF,"
+        f"{_bgr(tpl.get('base'), '&H3D1B0E&')},&H00000000,0,0,0,0,100,100,0,0,3,{max(14, W // 40)},0,5,{W // 9},{W // 9},0,-1",
+        f"Style: Sub,{font_family},{int(W * 0.055) if short else int(H * 0.055)},{_bgr(tpl.get('accent'), '&H4AA2C9&')},&H00FFFFFF,"
+        f"&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{max(2, outline // 2)},0,5,{W // 9},{W // 9},0,-1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     if hook:
         lines.append(f"Dialogue: 1,{_t(0)},{_t(dur)},Hook,,0,0,0,,{_esc(hook)}")
+    punch = ex.get("punch")
+    if punch:
+        ps, pe, ptxt = punch
+        pe = min(dur, max(pe, ps + 1.2), ps + 3.0)
+        # عبارة الذروة: تعتيم كامل للشاشة ثم دخول الخط الضخم بتكبير
+        lines.append(f"Dialogue: 3,{_t(ps)},{_t(pe)},Punch,,0,0,0,,{{\\an7\\pos(0,0)\\p1\\bord0\\shad0\\1c&H000000&\\1a&H78&\\fad(90,160)}}"
+                     f"m 0 0 l {W} 0 {W} {H} 0 {H}{{\\p0}}")
+        lines.append(f"Dialogue: 4,{_t(ps)},{_t(pe)},Punch,,0,0,0,,{{\\fad(60,160)\\fscx150\\fscy150\\t(0,220,\\fscx100\\fscy100)}}"
+                     + " ".join(f"{{\\c{kw_color}}}{_esc(x)}{{\\c&HFFFFFF&}}" if _norm(x) in kws else _esc(x) for x in ptxt.split()))
+    if ex.get("title"):
+        # بطاقة العنوان: تنزلق للأعلى مع تلاشٍ
+        y = int(H * 0.42)
+        mv = f"\\move({W // 2},{y + 40},{W // 2},{y},0,320)"
+        lines.append(f"Dialogue: 5,{_t(0.05)},{_t(min(dur, 1.9))},Card,,0,0,0,,{{\\an5{mv}\\fad(160,260)}}{_esc(ex['title'])}")
+        if ex.get("part"):
+            sy = y - int(W * 0.09 if short else H * 0.11)
+            lines.append(f"Dialogue: 5,{_t(0.05)},{_t(min(dur, 1.9))},Sub,,0,0,0,,{{\\an5\\move({W // 2},{sy + 40},{W // 2},{sy},0,320)\\fad(160,260)}}{_esc(ex['part'])}")
+    if ex.get("outro") and dur > 6:
+        y = int(H * 0.5)
+        lines.append(f"Dialogue: 5,{_t(dur - 2.2)},{_t(dur)},Card,,0,0,0,,{{\\an5\\move({W // 2},{y + 50},{W // 2},{y},0,300)\\fad(220,0)}}{_esc(ex['outro'])}")
     groups = chunks([w for w in words if w["s"] < dur and w["w"].strip()], 1 if single else max(1, int(brand.get("words") or 4)))
     for gi, g in enumerate(groups):
         nxt = groups[gi + 1][0]["s"] if gi + 1 < len(groups) else dur
@@ -95,6 +148,14 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None):
         for i, w in enumerate(g):
             start = w["s"] if i else g[0]["s"]
             end = g[i + 1]["s"] if i + 1 < len(g) else g_end
+            if punch:
+                # لا ترجمة عادية أثناء عبارة الذروة
+                if ps - 0.05 <= start and end <= pe + 0.05:
+                    continue
+                if start < ps < end:
+                    end = ps
+                elif start < pe < end:
+                    start = pe
             if end - start < 0.04:
                 continue
             txt = " ".join((active + (f"{{\\c{kw_color}}}" if _norm(x["w"]) in kws else "") + _esc(x["w"]) + r"{\r}") if j == i else
