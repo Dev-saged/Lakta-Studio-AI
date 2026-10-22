@@ -696,6 +696,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <span class="sub" id="p-quality-hint"></span></div>
         <div class="field"><span class="lbl">تلوين الفيديو</span><div class="seg sm" id="p-grade"><button type="button" data-v="none">بدون</button><button type="button" data-v="cinema">سينمائي</button><button type="button" data-v="warm">دافئ</button><button type="button" data-v="cool">بارد</button><button type="button" data-v="vivid">حيوي</button></div></div>
         <div class="row"><div><b>حبيبات فيلم خفيفة</b><small>ملمس سينمائي ناعم</small></div><input type="checkbox" class="sw" id="p-grain" aria-label="حبيبات فيلم"></div>
+        <div class="row"><div><b>ضبط الإضاءة والألوان تلقائياً</b><small>موازنة لطيفة تجعل ألوان الكاميرات المختلفة متقاربة</small></div><input type="checkbox" class="sw" id="p-auto" aria-label="ضبط الألوان تلقائياً"></div>
+        <div class="row"><div><b>تحسين المصادر الضعيفة</b><small>إزالة تشويش الضغط قبل تكبير فيديو أقل من دقة الإخراج</small></div><input type="checkbox" class="sw" id="p-lowres" aria-label="تحسين المصادر الضعيفة"></div>
+        <div class="row"><div><b>تثبيت الصورة</b><small>للفيديو المصوّر باليد · يضيف وقتاً للمعالجة</small></div><input type="checkbox" class="sw" id="p-stab" aria-label="تثبيت الصورة"></div>
         <div class="row"><div><b>تنقية صوت المتكلم</b><small>إزالة الضوضاء والهمهمة، وضوح الصوت، وتسوية المستوى</small></div><input type="checkbox" class="sw" id="p-vclean" aria-label="تنقية الصوت"></div>
         <div class="field"><span class="lbl">الترميز</span><div class="seg sm" id="p-codec"><button type="button" data-v="h264">H.264 · الأوسع توافقاً</button><button type="button" data-v="hevc">HEVC · أصغر 40%</button></div>
           <span class="sub" id="p-codec-hint"></span></div>
@@ -1435,6 +1438,7 @@ function initPrefs() {
   const pg = bindGroup("#p-grade", () => P().grade, v => savePref({ grade: v }));
   $("#p-grain").addEventListener("change", e => savePref({ grain: e.target.checked }));
   $("#p-vclean").addEventListener("change", e => savePref({ voice_clean: e.target.checked }));
+  [["#p-auto", "auto_color"], ["#p-lowres", "lowres_fix"], ["#p-stab", "stabilize"]].forEach(([id, k]) => $(id).addEventListener("change", e => savePref({ [k]: e.target.checked })));
   $("#p-tlight").addEventListener("change", e => savePref({ telegram_light: e.target.checked }));
   const QH = { compact: "أصغر حجم · نحو 25MB للدقيقة", balanced: "جودة عالية بحجم معتدل · نحو 40MB للدقيقة",
                premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس ليبقى القص حاداً · نحو 60MB للدقيقة" };
@@ -1473,6 +1477,7 @@ function initPrefs() {
     const st = S.state(); if (!st) return; const s = st.settings, e = st.env;
     pw(); pr(); pq(); pc(); pg();
     $("#p-grain").checked = !!s.grain; $("#p-vclean").checked = s.voice_clean !== false;
+    $("#p-auto").checked = s.auto_color !== false; $("#p-lowres").checked = s.lowres_fix !== false; $("#p-stab").checked = !!s.stabilize;
     $("#p-tlight").checked = s.telegram_light !== false;
     $("#p-codec-hint").textContent = s.codec === "hevc" ? "نفس الجودة بحجم أصغر، والملف يبقى MP4 · قد لا يعمل على أجهزة قديمة أو Firefox للكمبيوتر" : "يعمل على كل الأجهزة والمنصات";
     $("#p-quality-hint").textContent = QH[s.quality] || "";
