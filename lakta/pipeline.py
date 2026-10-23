@@ -6,7 +6,8 @@ from config import CONFIG
 from . import audio, backup, captions, covers, director, edit, ingest, package, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram, safe_name
 
-FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
+FORMAT_LABEL = {"short": "Shorts", "wide": "Wide", "square": "Square", "portrait": "Portrait"}
+RATIO = {"square": 1.0, "portrait": 0.8}
 
 
 def steps_for(opts):
@@ -175,7 +176,7 @@ class Pipeline:
 
         # ٦) الإخراج
         job.step("render")
-        fmts = [f for f in ("short", "wide") if opts["formats"].get(f)] or ["short"]
+        fmts = [f for f in FORMAT_LABEL if opts["formats"].get(f)] or ["short"]
         wm = env.assets / brand["watermark"] if brand.get("watermark") else None
         wm = wm if wm and wm.exists() else None
         music = env.music / a["music"] if a.get("music") else None
@@ -195,7 +196,7 @@ class Pipeline:
             if (opts.get("edit") or {}).get("sfx", True):
                 mix = audio.add_sfx(mix, work / f"mixfx_{i}.wav", fx["sfx"], env.assets, cancel)
             crop = None
-            if "short" in fmts:
+            if any(f in render.CROPPED for f in fmts):
                 crop = reframe.plan(src["path"], p["s"], p["dur_src"], meta["width"], meta["height"], env.assets, log,
                                     layout=opts.get("layout") or "track", cuts=p.get("scenes")) if opts.get("face") \
                     else ([(0.0, max(0, (meta["width"] - int(meta["height"] * 9 / 16)) // 2))], int(meta["height"] * 9 / 16) // 2 * 2)
@@ -214,22 +215,30 @@ class Pipeline:
                 c["covers"] = {k: [f"{job.id}/{x}" for x in v] for k, v in cov.get("covers", {}).items()}
             except Exception as e:
                 log(f"تعذّر مصمم الأغلفة ({str(e)[:120]}) · استخدام الغلاف البسيط")
+            if brand.get("bilingual") and has_key and p["words"]:
+                p["trans"] = _translate(st, p["words"], brand.get("trans_lang") or "en", log)
             for fmt in fmts:
-                job.note(f"اللقطة {n} · {'شورتس' if fmt == 'short' else 'عريض'}")
+                job.note(f"اللقطة {n} · {package.FMT.get(fmt, fmt)}")
+                fcrop = crop if fmt == "short" else reframe.rescale(crop, meta["width"], meta["height"], RATIO[fmt]) if fmt in RATIO and crop else None
                 W, H = render.SIZES[(fmt, 720 if res <= 720 else 1080)]
                 ass = captions.build(work / f"cap_{i}_{fmt}.ass", p["words"], p["out_dur"], W, H, brand, family,
                                      c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"),
-                                     extras=_extras(brand, p, c, n, len(plan), fmt, None if opts.get("short_fill") else crop))
+                                     extras=_extras(brand, p, c, n, len(plan), fmt, None if opts.get("short_fill") else fcrop))
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
-                            crop=crop if fmt == "short" else None, work=work, cancel=cancel, template=_template(env, brand, fmt),
+                            crop=fcrop, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
                             progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
                             edl=p.get("edl"), codec=st.get("codec"),
                             look={"grade": st.get("grade"), "grain": st.get("grain"), "auto": st.get("auto_color") is not False,
                                   "src_h": meta["height"] if st.get("lowres_fix") is not False else None, "stab": stab},
                             fill=opts.get("short_fill"), fx=fx)
+                intro, outro = (env.assets / brand[k] if brand.get(k) and (env.assets / brand[k]).exists() else None
+                                for k in ("intro_video", "outro_video"))
+                if intro or outro:
+                    job.note(f"اللقطة {n} · فاصل القناة")
+                    render.bumper(dst, W, H, intro, outro, st.get("quality"), st.get("codec"), cancel)
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)
@@ -244,6 +253,8 @@ class Pipeline:
 
         # ٧) التغليف والإرسال
         job.step("package")
+        if st.get("publish_pack") is not False:
+            _publish(st, has_key, out, clips, seo, tr, src, meta, log)
         # ملف مضغوط باسم المشروع: مجلد لكل جزء بأسماء عربية
         title = safe_name(seo['title'] or src['title'])
         items = package.entries(env, job.id, _public(clips))
@@ -295,9 +306,46 @@ def _kw_times(words, c, keywords, gap=2.5):
     return out[:5]
 
 
+def _translate(st, words, lang, log):
+    """سطور ترجمة ثانية: جمل قصيرة بحدود الوقفات"""
+    groups = captions.chunks(words, 7, 0.5)
+    try:
+        lines = director.translate_lines(st, [" ".join(w["w"] for w in g) for g in groups], lang)
+    except Exception as e:
+        log(f"تعذّرت الترجمة الثانية ({director.friendly(e)})")
+        return []
+    return [(g[0]["s"], g[-1]["e"] + 0.2, t) for g, t in zip(groups, lines)]
+
+
+def _publish(st, has_key, out, clips, seo, tr, src, meta, log):
+    """ملفات نشر لكل منصة لكل جزء + فصول الحلقة"""
+    pack, chapters = {}, []
+    if has_key:
+        try:
+            segs = tr["segments"] if tr.get("source") == "youtube" else transcribe.regroup(tr["words"])
+            pack, chapters = director.publish_pack(st, clips, seo, segs, src["title"], meta["duration"])
+        except Exception as e:
+            log(f"تعذّر ملف النشر الذكي ({director.friendly(e)}) · نسخة أساسية")
+    tags = seo.get("hashtags") or []
+    for c in clips:
+        k = pack.get(c["n"]) or {}
+        hs = " ".join("#" + h.lstrip("#").replace(" ", "_") for h in (k.get("hashtags") or tags)[:8])
+        yt = (f"{k.get('youtube_title') or c.get('full_title') or c['title']}\n\n{k.get('youtube_description') or seo.get('description', '')}\n\n"
+              f"{hs}\n\nالكلمات الدلالية: {', '.join(k.get('youtube_tags') or tags)}")
+        alts = c.get("alt_titles") or []
+        if alts:
+            yt += "\n\nعناوين بديلة:\n" + "\n".join(f"- {a}" for a in alts)
+        (out / f"_pub_{c['n']}_yt.txt").write_text(yt, "utf-8-sig")
+        (out / f"_pub_{c['n']}_tt.txt").write_text(f"{k.get('tiktok_caption') or c.get('hook') or c['title']}\n\n{hs}", "utf-8-sig")
+        (out / f"_pub_{c['n']}_ig.txt").write_text(f"{k.get('instagram_caption') or c['title']}\n\n{hs}", "utf-8-sig")
+    if chapters:
+        (out / "_chapters.txt").write_text("\n".join(f"{_mmss(t)} {name}" for t, name in chapters), "utf-8-sig")
+
+
 def _extras(brand, p, c, n, parts, fmt, crop):
     """عبارة الذروة، بطاقتا العنوان والختام، وتخطيط الشاشة المقسومة"""
-    ex = {"punch": p.get("punch"), "layout": "split" if fmt == "short" and isinstance(crop, dict) else None}
+    ex = {"punch": p.get("punch"), "layout": "split" if fmt == "short" and isinstance(crop, dict) else None,
+          "trans": p.get("trans"), "speaker": c.get("speaker") if brand.get("lower_third", True) else None}
     if brand.get("title_card"):
         tpl = brand.get("template") or {}
         ex.update(title=c["title"], part=f"الجزء {thumbs.part_word(n)}" if parts > 1 else "")
@@ -331,7 +379,7 @@ def _template(env, brand, fmt):
 
 
 def _public(clips):
-    keys = ("n", "s", "e", "title", "hook", "thumb", "score", "reason", "files", "full_title", "desc", "dur", "covers")
+    keys = ("n", "s", "e", "title", "hook", "thumb", "score", "reason", "files", "full_title", "desc", "dur", "covers", "alt_titles", "speaker")
     return [{k: c.get(k) for k in keys} for c in clips]
 
 
