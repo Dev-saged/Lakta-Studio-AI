@@ -17,7 +17,8 @@ Output: no greetings or filler. Max 3 bullets of explanation. One-line summary b
 ## Workflow
 - Feature request: plan first, wait for approval, then implement on branch feature/<name>.
 - New project: deliver a static prototype (home screen, 3 directions, sample data, no logic) and stop for my choice. Never rebuild the shell after approval.
-- Session end: write .claude/session-handoff.md (where we stopped, next step).
+- Session start: read .claude/session-handoff.md and docs/repo-map.md only. Do not scan the repo.
+- Session end: rewrite (not append) .claude/session-handoff.md, max 25 lines: state, decisions, open issues, next step.
 - Version: bump APP_VERSION and version.json (vMAJOR.MINOR.PATCH) on substantive changes.
 
 ## Stack
