@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.8.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.9.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -16,6 +16,7 @@ CONFIG = {
         "balanced": {"gpu": "large-v3-turbo", "cpu": "small"},
         "best": {"gpu": "large-v3", "cpu": "medium"},
     },
+    "whisper_batch": 16,
     "clip": {"min": 25, "max": 75, "target": "40-60", "max_parts": 3},
     "limits": {"upload_mb": 4096, "font_mb": 20, "image_mb": 10, "music_mb": 50, "json_kb": 512},
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},

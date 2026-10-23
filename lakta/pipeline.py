@@ -61,7 +61,8 @@ class Pipeline:
         family = captions.font_family(font_file)
         job.set(voice_label=voice_label(a))
 
-        # ١) المصدر
+        # ١) المصدر · ويبدأ تحميل نموذج التفريغ بالتوازي
+        transcribe.preload(st.get("whisper"), gpu)
         job.step("download")
         src_opt = opts["source"]
         if src_opt["type"] == "file":
