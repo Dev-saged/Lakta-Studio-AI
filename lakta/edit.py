@@ -84,6 +84,26 @@ def zooms(segs, cold):
     return flags
 
 
+def snap_beats(edl, beats, speed=1.0, win=0.3):
+    """نقل تبديلات الزوم (حيث الصوت متصل) إلى أقرب نبضة موسيقية"""
+    segs = [list(x) for x in edl["segs"]]
+    if not beats or len(segs) < 2:
+        return edl
+    t_out, moved = 0.0, 0
+    for i in range(len(segs) - 1):
+        t_out += (segs[i][1] - segs[i][0]) / speed
+        if abs(segs[i][1] - segs[i + 1][0]) > 1e-3 or (edl["cold"] and i == 0):
+            continue
+        bt = min(beats, key=lambda b: abs(b - t_out))
+        d = (bt - t_out) * speed
+        if abs(d) <= win and segs[i][1] + d - segs[i][0] >= 0.5 and segs[i + 1][1] - (segs[i + 1][0] + d) >= 0.5:
+            segs[i][1] = segs[i + 1][0] = round(segs[i][1] + d, 3)
+            t_out += d / speed
+            moved += 1
+    base = edl["abs"][0][0] - edl["segs"][0][0]
+    return {**edl, "segs": [tuple(x) for x in segs], "abs": [(round(a + base, 3), round(b + base, 3)) for a, b in segs], "beats": moved}
+
+
 def total(segs):
     return sum(b - a for a, b in segs)
 
