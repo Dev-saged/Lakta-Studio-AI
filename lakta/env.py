@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 class Env:
     def __init__(self):
         self.name, self.base, self.temp = self._paths()
-        for d in (self.base, self.temp, self.fonts, self.outputs, self.uploads, self.music, self.assets, self.bin):
+        for d in (self.base, self.temp, self.fonts, self.outputs, self.uploads, self.music, self.assets, self.bin, self.sources):
             d.mkdir(parents=True, exist_ok=True)
         self._seed_fonts()
         self.gpu = self._gpu()
@@ -44,6 +44,7 @@ class Env:
     music = property(lambda s: s.base / "Music")
     assets = property(lambda s: s.base / "assets")
     bin = property(lambda s: s.base / "bin")
+    sources = property(lambda s: s.base / "sources")
 
     def _seed_fonts(self):
         for f in (ROOT / "assets" / "fonts").glob("*.ttf"):
@@ -74,7 +75,8 @@ class Env:
 # ===== الأسرار: الإعدادات ← متغيرات البيئة ← Kaggle Secrets ← Colab =====
 SECRET_ENV = {"gemini_key": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "telegram_token": ("TELEGRAM_TOKEN",),
               "telegram_chat": ("TELEGRAM_CHAT_ID",), "youtube_cookies": ("YOUTUBE_COOKIES",),
-              "lakta_password": ("LAKTA_PASSWORD",)}
+              "lakta_password": ("LAKTA_PASSWORD",), "relay_url": ("LAKTA_RELAY_URL",), "relay_token": ("LAKTA_RELAY_TOKEN",),
+              "kaggle_username": ("KAGGLE_USERNAME",), "kaggle_key": ("KAGGLE_KEY",)}
 _secret_cache = {}
 
 

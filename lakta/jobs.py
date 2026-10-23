@@ -99,6 +99,8 @@ class Store:
                 return False
             del self.jobs[jid]
         shutil.rmtree(self.env.outputs / jid, ignore_errors=True)
+        for f in self.env.sources.glob(f"{jid}.*"):
+            f.unlink(missing_ok=True)
         uploads = (job.get("opts") or {}).get("source", {})
         if uploads.get("type") == "file" and uploads.get("file_id") and not any(
                 (j.get("opts") or {}).get("source", {}).get("file_id") == uploads["file_id"] for j in self.jobs.values()):
@@ -176,8 +178,10 @@ class Worker:
             job = Job(self.store, jid, lambda: jid in self.cancel)
             self.store.update(jid, status="running")
             try:
-                self.pipeline(job)
-                job.done()
+                if self.pipeline(job) == "review":
+                    job.finish("review", None)
+                else:
+                    job.done()
             except Cancelled:
                 job.finish("canceled", "أُلغيت المهمة")
             except Exception as e:
@@ -222,6 +226,13 @@ class Job:
                     s["state"], s["note"] = "now", note
         self.current = key
         self._pct(0)
+
+    def skip(self, key):
+        with self.store.lock:
+            for s in self.data["steps"]:
+                if s["key"] == key:
+                    s["state"] = "done"
+        self.store.touch()
 
     def note(self, note):
         with self.store.lock:
