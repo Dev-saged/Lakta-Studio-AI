@@ -52,6 +52,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Image: settings auto_color (normalize, mild), lowres_fix (hqdn3d when H/src_h>1.25), stabilize (vidstab 2-pass via render.stab_prep, deshake fallback); pre-stage [base] label in render
 - Project cache: outputs/<job>/project.json (src, meta, tr, clips, seo); downloaded source moved to base/sources (keep CONFIG.cache.sources); phase=produce skips analysis; status 'review' pauses after direct; /api/jobs/<id>/(project|source|produce|rerender|alt); retry resumes when project+source exist
 - relay.py + deploy/relay-worker.js (fixed URL via Worker+KV redirect); backup.py (Kaggle Dataset snapshot after jobs, restore at start; secrets stripped, sources/uploads/cookies excluded)
+- Batch 2: formats square/portrait (reframe.rescale of short crop, render.CROPPED); brand lower_third (director speaker → LName/LRole), bilingual (director.translate_lines → Trans style), intro/outro bumpers (render.bumper concat); publish_pack → _pub_<n>_{yt,tt,ig}.txt + _chapters.txt in zip; alt_titles chips in review
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)

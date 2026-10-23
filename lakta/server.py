@@ -26,6 +26,8 @@ UPLOADS = {
     "watermark": ({".png", ".webp", ".jpg", ".jpeg"}, "image_mb"),
     "frame_short": ({".png"}, "image_mb"),
     "frame_wide": ({".png"}, "image_mb"),
+    "intro_video": ({".mp4", ".mov", ".webm", ".m4v"}, "bumper_mb"),
+    "outro_video": ({".mp4", ".mov", ".webm", ".m4v"}, "bumper_mb"),
     "music": ({".mp3", ".m4a", ".wav", ".ogg"}, "music_mb"),
     "cookies": ({".txt"}, "json_kb"),
 }
@@ -75,6 +77,7 @@ class App:
             a, b = max(0.0, c["s"] - 20), min(dur, c["e"] + 20)
             out.append({"n": c["n"], "s": c["s"], "e": c["e"], "title": c.get("title", ""), "hook": c.get("hook", ""),
                         "thumb": c.get("thumb", ""), "score": c.get("score", 0), "win": [a, b],
+                        "alt_titles": c.get("alt_titles") or [], "speaker": c.get("speaker") or {"name": "", "role": ""},
                         "words": [[i, w["w"], round(w["s"], 2), round(w["e"], 2)] for i, w in enumerate(words) if a <= w["s"] < b]})
         return {"duration": dur, "title": pj["src"]["title"], "clips": out, "source": Path(pj["src"]["path"]).exists()}
 
@@ -124,6 +127,8 @@ class App:
                 for k in ("title", "hook", "thumb"):
                     if isinstance(e.get(k), str):
                         c[k] = re.sub(r"\s+", " ", e[k]).strip()[:120] or c[k]
+                if isinstance(e.get("speaker"), dict):
+                    c["speaker"] = {k: re.sub(r"\s+", " ", str(e["speaker"].get(k, ""))).strip()[:60] for k in ("name", "role")}
             words = pj["tr"]["words"]
             for i, w in (body.get("fixes") or {}).items():
                 i = int(i)
@@ -170,7 +175,8 @@ class App:
             a["music"] = ""
         fm = body.get("formats") or {}
         opts = {"parts": max(1, min(CONFIG["clip"]["max_parts"], int(body.get("parts") or 1))),
-                "formats": {"short": bool(fm.get("short", True)), "wide": bool(fm.get("wide", True))},
+                "formats": {"short": bool(fm.get("short", True)), "wide": bool(fm.get("wide", True)),
+                            "square": bool(fm.get("square", False)), "portrait": bool(fm.get("portrait", False))},
                 "face": bool(body.get("face", True)), "hook": bool(body.get("hook", False)), "audio": a,
                 "short_fill": bool(body.get("short_fill", False)), "review": bool(body.get("review", False)),
                 "layout": body.get("layout") if body.get("layout") in ("track", "active", "split") else "track",
@@ -475,13 +481,14 @@ def handler(app):
                 if path == "/api/delete":
                     kind, name = body.get("kind"), Path(str(body.get("name", ""))).name
                     root = {"font": app.env.fonts, "music": app.env.music, "watermark": app.env.assets, "cookies": app.env.assets,
-                            "frame_short": app.env.assets, "frame_wide": app.env.assets}.get(kind)
+                            "frame_short": app.env.assets, "frame_wide": app.env.assets,
+                            "intro_video": app.env.assets, "outro_video": app.env.assets}.get(kind)
                     if kind == "cookies":
                         name = "youtube_cookies.txt"
                     if not root or not name or name == CONFIG["fonts"]["default"]:
                         raise ValueError("لا يمكن الحذف")
                     (root / name).unlink(missing_ok=True)
-                    if kind.startswith("frame_") or kind == "watermark":
+                    if kind.startswith(("frame_", "intro_", "outro_")) or kind == "watermark":
                         app.settings.update({"brand": {kind: ""}})
                     return self._json(app.state())
                 self._err("غير موجود", 404)
@@ -584,8 +591,9 @@ def handler(app):
                 dst = app.env.assets / "youtube_cookies.txt"
             else:
                 root = {"font": app.env.fonts, "watermark": app.env.assets, "music": app.env.music,
-                        "frame_short": app.env.assets, "frame_wide": app.env.assets}[kind]
-                dst = root / ("watermark" + ext if kind == "watermark" else kind + ext if kind.startswith("frame_") else name)
+                        "frame_short": app.env.assets, "frame_wide": app.env.assets,
+                        "intro_video": app.env.assets, "outro_video": app.env.assets}[kind]
+                dst = root / ("watermark" + ext if kind == "watermark" else kind + ext if kind.startswith(("frame_", "intro_", "outro_")) else name)
             tmp = dst.with_name(dst.name + ".part")
             with open(tmp, "wb") as f:
                 left = n
@@ -611,7 +619,10 @@ def handler(app):
                 app.settings.update({"brand": {"watermark": dst.name}})
             if kind == "font":
                 app.settings.update({"brand": {"font": dst.name}})
-            if kind.startswith("frame_"):
+            if kind.startswith(("frame_", "intro_", "outro_")):
+                for old in app.env.assets.glob(f"{kind}.*"):
+                    if old != dst:
+                        old.unlink()
                 app.settings.update({"brand": {kind: dst.name}})
             return {"ok": True, "name": dst.name, "file_id": dst.name if kind == "video" else None, "state": app.state()}
 
@@ -619,9 +630,10 @@ def handler(app):
 
 
 def _validate(kind, path):
-    if kind == "video":
+    if kind in ("video", "intro_video", "outro_video"):
         m = ffprobe(path)
-        assert m["width"] and m["duration"] > 1
+        assert m["width"] and m["duration"] > (1 if kind == "video" else 0.3)
+        assert kind == "video" or m["duration"] <= 30
     elif kind == "font":
         from PIL import ImageFont
         ImageFont.truetype(str(path), 20)

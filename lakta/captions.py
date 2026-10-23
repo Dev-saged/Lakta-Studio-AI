@@ -115,6 +115,12 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None, 
         f"{outline + 2},{outline // 2 + 2},5,{W // 10},{W // 10},0,-1",
         f"Style: Card,{font_family},{int(W * 0.085) if short else int(H * 0.08)},{_bgr(tpl.get('ink'), '&HF6EBD0&')},&H00FFFFFF,"
         f"{_bgr(tpl.get('base'), '&H3D1B0E&')},&H00000000,0,0,0,0,100,100,0,0,3,{max(14, W // 40)},0,5,{W // 9},{W // 9},0,-1",
+        f"Style: Trans,{font_family},{int(size * 0.5)},&H00E8E8E8,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,"
+        f"{max(2, outline // 2)},1,{cap_align},{side_l},{side_r},{max(0, margin_v - int(size * 0.75)) if cap_align == 2 else 0},-1",
+        f"Style: LName,{font_family},{int(W * 0.05) if short else int(H * 0.055)},&H00FFFFFF,&H00FFFFFF,{_bgr(tpl.get('accent'), '&H4AA2C9&')},"
+        f"&H00000000,0,0,0,0,100,100,0,0,3,{max(10, W // 70)},0,3,{side_l},{side_r},{margin_v + int(size * 2.6)},-1",
+        f"Style: LRole,{font_family},{int(W * 0.036) if short else int(H * 0.04)},{_bgr(tpl.get('ink'), '&HF6EBD0&')},&H00FFFFFF,"
+        f"{_bgr(tpl.get('base'), '&H3D1B0E&')},&H00000000,0,0,0,0,100,100,0,0,3,{max(8, W // 90)},0,3,{side_l},{side_r},{margin_v + int(size * 1.75)},-1",
         f"Style: Sub,{font_family},{int(W * 0.055) if short else int(H * 0.055)},{_bgr(tpl.get('accent'), '&H4AA2C9&')},&H00FFFFFF,"
         f"&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,{max(2, outline // 2)},0,5,{W // 9},{W // 9},0,-1",
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -138,6 +144,18 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None, 
         if ex.get("part"):
             sy = y - int(W * 0.09 if short else H * 0.11)
             lines.append(f"Dialogue: 5,{_t(0.05)},{_t(min(dur, 1.9))},Sub,,0,0,0,,{{\\an5\\move({W // 2},{sy + 40},{W // 2},{sy},0,320)\\fad(160,260)}}{_esc(ex['part'])}")
+    sp = ex.get("speaker") or {}
+    if sp.get("name") and dur > 6:
+        # شريط اسم المتكلم: ينزلق من الطرف ويبقى ثلاث ثوانٍ
+        a, b = 0.9, min(dur, 4.6)
+        lines.append(f"Dialogue: 6,{_t(a)},{_t(b)},LName,,0,0,0,,{{\\fad(220,260)\\fsp1}}{_esc(sp['name'])}")
+        if sp.get("role"):
+            lines.append(f"Dialogue: 6,{_t(a + 0.15)},{_t(b)},LRole,,0,0,0,,{{\\fad(260,260)}}{_esc(sp['role'])}")
+    for ts, te, tt in ex.get("trans") or []:
+        if ts < dur and tt:
+            # سطر الترجمة الثانية أسفل الترجمة العربية
+            pos = f"{{\\an5\\pos({W // 2},{H // 2 + int(size * 1.15)})}}" if cap_align == 5 else ""
+            lines.append(f"Dialogue: 0,{_t(ts)},{_t(min(dur, te))},Trans,,0,0,0,,{pos}{_esc(tt)}")
     if ex.get("outro") and dur > 6:
         y = int(H * 0.5)
         lines.append(f"Dialogue: 5,{_t(dur - 2.2)},{_t(dur)},Card,,0,0,0,,{{\\an5\\move({W // 2},{y + 50},{W // 2},{y},0,300)\\fad(220,0)}}{_esc(ex['outro'])}")

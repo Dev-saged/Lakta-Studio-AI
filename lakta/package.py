@@ -4,7 +4,8 @@ from pathlib import Path
 
 from .thumbs import part_word
 
-FMT = {"short": "شورتس", "wide": "عريض"}
+FMT = {"short": "شورتس", "wide": "عريض", "square": "مربع", "portrait": "منشور عمودي"}
+PUB = {"yt": "نشر يوتيوب", "tt": "نشر تيك توك", "ig": "نشر إنستغرام"}
 MARGIN = 256 * 1024
 
 
@@ -20,13 +21,17 @@ def entries(env, job_id, clips):
             if f.get(fmt):
                 res.append((env.outputs / f[fmt], f"{folder}/{label}.mp4", n))
         cov = c.get("covers") or {}
-        for fmt, label in FMT.items():
+        for fmt, label in list(FMT.items())[:2]:
             lst = cov.get(fmt) or ([f[f"thumb_{fmt}"]] if f.get(f"thumb_{fmt}") else [])
             for k, rel in enumerate(lst, 1):
                 res.append((env.outputs / rel, f"{folder}/غلاف {label}{f' {k}' if len(lst) > 1 else ''}.jpg", n))
         txt = out / f"_text_{n}.txt"
         txt.write_text(f"العنوان:\n{c.get('full_title') or c.get('title') or ''}\n\nالوصف:\n{c.get('desc') or ''}\n", "utf-8-sig")
         res.append((txt, f"{folder}/العنوان والوصف.txt", n))
+        for k, label in PUB.items():
+            res.append((out / f"_pub_{n}_{k}.txt", f"{folder}/{label}.txt", n))
+    if clips:
+        res.append((out / "_chapters.txt", "فصول الحلقة.txt", clips[0]["n"]))
     return [(p, a, n) for p, a, n in res if Path(p).exists()]
 
 

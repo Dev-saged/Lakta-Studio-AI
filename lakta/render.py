@@ -1,9 +1,13 @@
+from pathlib import Path
+
 from config import CONFIG
 from .env import encoder_args, enhance_filters, filter_path, run
 from . import reframe
 from .edit import ZOOM
 
-SIZES = {("short", 1080): (1080, 1920), ("short", 720): (720, 1280), ("wide", 1080): (1920, 1080), ("wide", 720): (1280, 720)}
+SIZES = {("short", 1080): (1080, 1920), ("short", 720): (720, 1280), ("wide", 1080): (1920, 1080), ("wide", 720): (1280, 720),
+         ("square", 1080): (1080, 1080), ("square", 720): (720, 720), ("portrait", 1080): (1080, 1350), ("portrait", 720): (720, 900)}
+CROPPED = ("short", "square", "portrait")
 WM_POS = {"tr": ("W-w-{p}", "{p}"), "tl": ("{p}", "{p}"), "br": ("W-w-{p}", "H-h-{p}"), "bl": ("{p}", "H-h-{p}")}
 
 
@@ -88,7 +92,7 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         pre_parts.append(f"[0:v]{','.join(pre)}[base]")
         base = "[base]"
     src_label = base
-    if fmt == "short" and fill:
+    if fmt in CROPPED and fill:
         # خلفية ضبابية: الإطار العريض كاملاً فوق نسخة مكبّرة ومموّهة منه
         pre_parts.append(f"{base}split[fa][fb];[fa]scale={W // 4}:{H // 4}:force_original_aspect_ratio=increase,crop={W // 4}:{H // 4},"
                          f"gblur=sigma=12,eq=brightness=-0.07:saturation=1.1,scale={W}:{H}[fbg];[fb]scale={W}:-2:flags=lanczos[ffg];"
@@ -102,7 +106,7 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
                          f"crop={W}:{hh},setsar=1[st];[sb]crop={cw}:{ch}:{x2}:{y2},scale={W}:{hh}:force_original_aspect_ratio=increase:"
                          f"flags=lanczos,crop={W}:{hh},setsar=1[sbt];[st][sbt]vstack,drawbox=x=0:y={hh - 3}:w=iw:h=6:color=black@0.85:t=fill[split]")
         src_label = "[split]"
-    elif fmt == "short" and crop:
+    elif fmt in CROPPED and crop and not isinstance(crop, dict):
         keys, cw = crop
         v.append(f"crop=w={cw}:h=ih:x='{reframe.expr(keys)}':y=0")
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
@@ -189,6 +193,36 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
             if k == len(attempts) - 1:
                 raise
     return out
+
+
+def bumper(clip_path, W, H, intro=None, outro=None, quality=None, codec="h264", cancel=None):
+    """لصق مقدمة وختام القناة حول اللقطة بنفس المقاس والصوت"""
+    from .env import ffprobe
+    parts = [p for p in (intro, clip_path, outro) if p]
+    if len(parts) == 1:
+        return clip_path
+    inputs, fc = [], []
+    for i, p in enumerate(parts):
+        m = ffprobe(p)
+        inputs += ["-i", str(p)]
+        fc.append(f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black,"
+                  f"setsar=1,fps=30,format=yuv420p[v{i}]")
+        if m["has_audio"]:
+            fc.append(f"[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}]")
+        else:
+            fc.append(f"anullsrc=r=48000:cl=stereo,atrim=0:{m['duration']:.3f}[a{i}]")
+    fc.append("".join(f"[v{i}][a{i}]" for i in range(len(parts))) + f"concat=n={len(parts)}:v=1:a=1[v][a]")
+    tmp = Path(clip_path).with_name(Path(clip_path).stem + "_b.mp4")
+    for args in (encoder_args(quality, codec=codec), encoder_args(quality, True, "h264")):
+        try:
+            run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *inputs, "-filter_complex", ";".join(fc), "-map", "[v]", "-map", "[a]",
+                 *args, "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(tmp)], cancel=cancel)
+            tmp.replace(clip_path)
+            return clip_path
+        except RuntimeError:
+            continue
+    tmp.unlink(missing_ok=True)
+    return clip_path
 
 
 def light_copy(src, dst, target_mb=44):
