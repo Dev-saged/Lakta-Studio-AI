@@ -50,6 +50,8 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Layout opt track|active|split: reframe._two_speakers (1D clustering + mouth motion); split returns dict crop rendered as vstack
 - Captions extras: director 'punch' phrase located by captions.find_phrase → dim + big text (regular captions suppressed); brand.safe_zone margins; brand.title_card intro/outro (outro skipped when template CTA shows)
 - Image: settings auto_color (normalize, mild), lowres_fix (hqdn3d when H/src_h>1.25), stabilize (vidstab 2-pass via render.stab_prep, deshake fallback); pre-stage [base] label in render
+- Project cache: outputs/<job>/project.json (src, meta, tr, clips, seo); downloaded source moved to base/sources (keep CONFIG.cache.sources); phase=produce skips analysis; status 'review' pauses after direct; /api/jobs/<id>/(project|source|produce|rerender|alt); retry resumes when project+source exist
+- relay.py + deploy/relay-worker.js (fixed URL via Worker+KV redirect); backup.py (Kaggle Dataset snapshot after jobs, restore at start; secrets stripped, sources/uploads/cookies excluded)
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)

@@ -56,8 +56,8 @@ def _deno_path():
         pass
 
 
-def _show(url, key, env_name):
-    full = f"{url}/?k={key}"
+def _show(url, key, env_name, fixed=None):
+    full = f"{fixed or url}/?k={key}"
     line = "═" * 58
     print(f"\n{line}\n  👑 استوديو لقطة يعمل على {env_name}\n  افتح الرابط:  {full}\n  مفتاح الدخول: {key}\n{line}\n", flush=True)
     try:
@@ -73,6 +73,7 @@ def _show(url, key, env_name):
             f'<button style="{btn};background:#0e1b3d" data-v="{full}" onclick="{copy}">نسخ الرابط</button></div>'
             f'<div>رمز الدخول: <code style="font:700 24px monospace;letter-spacing:2px;user-select:all">{key}</code> '
             f'<button style="{btn};padding:6px 12px;background:#555" data-v="{key}" onclick="{copy}">نسخ الرمز</button></div>'
+            + (f'<small style="color:#2b4bd8">رابطك الثابت: {fixed}</small>' if fixed else '') +
             f'<small style="color:#666">لرمز ثابت دائماً أضف في Secrets: LAKTA_PASSWORD</small></div>'))
     except Exception:
         pass
@@ -90,6 +91,8 @@ def main(port=None, tunnel=None, block=True):
 
     port = int(port or os.getenv("LAKTA_PORT") or CONFIG["server"]["port"])
     env = Env()
+    from lakta import backup, relay
+    backup.restore(env)
     settings = Settings(env)
     store = Store(env)
     worker = Worker(store, Pipeline(env, settings))
@@ -100,7 +103,9 @@ def main(port=None, tunnel=None, block=True):
     url = tun.start(port, env.bin) if use_tunnel else None
     if use_tunnel and not url:
         print("⚠️ تعذّر فتح النفق · استخدم الرابط المحلي أو أعد التشغيل")
-    _show(url or f"http://127.0.0.1:{port}", app.key, env.name)
+    fixed = relay.publish(url) if url else None
+    app.fixed_url = fixed
+    _show(url or f"http://127.0.0.1:{port}", app.key, env.name, fixed)
     if not block:
         return app
     try:
