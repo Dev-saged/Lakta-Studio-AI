@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import backup, director, fonts, ingest, templates, transcribe, voice
+from . import audio, backup, kits, director, fonts, ingest, templates, transcribe, voice
 from .env import ROOT, ffprobe
 from .jobs import STEP_LABELS
 from .pipeline import deliver_again, steps_for
@@ -54,6 +54,8 @@ class App:
         self.token = norm_key(self.key)
         self.fails = {}
         self.fixed_url = None
+        from .watch import Watcher
+        self.watch = Watcher(env, settings, store, worker, steps_for)
 
     # ===== المشروع المحفوظ: مراجعة وإعادة إخراج =====
     def load_project(self, jid):
@@ -151,6 +153,37 @@ class App:
         self.worker.kick()
         return {"ids": [jid], "msg": "أُرسلت للإخراج"}
 
+    def _music_meta(self):
+        try:
+            meta = json.loads((self.env.music / ".meta.json").read_text("utf-8"))
+        except Exception:
+            return {}
+        return {k.rsplit(":", 1)[0]: {"bpm": v.get("bpm"), "mood": v.get("mood")} for k, v in meta.items()}
+
+    def stats(self):
+        """لوحة الإحصاءات من سجل المهام"""
+        _, jobs = self.store.snapshot()
+        jobs = [j for j in jobs if not j.get("deleted")]
+        done = [j for j in jobs if j["status"] == "done"]
+        ended = [j for j in jobs if j["status"] in ("done", "failed")]
+        clips = [dict(c, job=j["id"], jtitle=j["title"]) for j in done for c in j.get("clips") or []]
+        secs = {}
+        for j in done:
+            for s in j.get("steps") or []:
+                if s.get("sec"):
+                    secs.setdefault(s["key"], []).append(s["sec"])
+        day = 86400
+        now = time.time()
+        week = [sum(1 for j in done if now - (k + 1) * day <= (j.get("finished") or 0) < now - k * day) for k in range(13, -1, -1)]
+        return {"jobs": len(jobs), "done": len(done), "failed": sum(1 for j in jobs if j["status"] == "failed"),
+                "success": round(100 * len(done) / len(ended)) if ended else 0, "clips": len(clips),
+                "hours": round(sum(j.get("duration") or 0 for j in done) / 3600, 1),
+                "score": round(sum(c.get("score") or 0 for c in clips) / len(clips)) if clips else 0,
+                "steps": [{"key": k, "label": STEP_LABELS[k], "avg": round(sum(v) / len(v), 1)} for k, v in secs.items()],
+                "daily": week,
+                "top": [{k: c.get(k) for k in ("job", "jtitle", "n", "title", "score", "files")}
+                        for c in sorted(clips, key=lambda c: -(c.get("score") or 0))[:5]]}
+
     # ===== الحالة =====
     def state(self):
         ver, jobs = self.store.snapshot()
@@ -159,7 +192,8 @@ class App:
                 "google_fonts": fonts.GOOGLE_ARABIC,
                 "music": sorted(p.name for p in self.env.music.glob("*") if p.suffix.lower() in UPLOADS["music"][0]),
                 "cookies": "file" if (self.env.assets / "youtube_cookies.txt").exists() else ("secret" if ingest.cookies_path(self.env) else ""),
-                "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "backup": backup.info(self.env), "fixed_url": self.fixed_url, "clip": CONFIG["clip"], "trash_days": CONFIG["trash"]["days"],
+                "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "backup": backup.info(self.env), "fixed_url": self.fixed_url,
+                "watch": self.watch.public(), "kits": sorted(kits.load(self.env)), "music_meta": self._music_meta(), "clip": CONFIG["clip"], "trash_days": CONFIG["trash"]["days"],
                 "version": ver, "jobs": jobs}
 
     def create_jobs(self, body):
@@ -171,7 +205,7 @@ class App:
                 raise ValueError(f"قيمة غير صالحة: {k}")
         if not re.fullmatch(r"[A-Za-z0-9\-]{2,40}", a["voice"]):
             raise ValueError("اسم الصوت غير صالح")
-        if a["music"] and not (self.env.music / Path(a["music"]).name).exists():
+        if a["music"] and a["music"] != "auto" and not (self.env.music / Path(a["music"]).name).exists():
             a["music"] = ""
         fm = body.get("formats") or {}
         opts = {"parts": max(1, min(CONFIG["clip"]["max_parts"], int(body.get("parts") or 1))),
@@ -348,6 +382,8 @@ def handler(app):
                     return self._err("غير مصرّح", 401)
                 if path == "/api/state":
                     return self._json(app.state())
+                if path == "/api/stats":
+                    return self._json(app.stats())
                 if path == "/api/jobs":
                     ver, jobs = app.store.snapshot()
                     return self._json({"version": ver, "jobs": jobs})
@@ -432,6 +468,19 @@ def handler(app):
                 body = self._body()
                 if path == "/api/jobs":
                     return self._json({"ids": app.create_jobs(body)})
+                if path == "/api/watch":
+                    a = body.get("act")
+                    if a == "add":
+                        return self._json({"watch": app.watch.add(body.get("url"), body.get("parts"))})
+                    if a == "remove":
+                        return self._json({"watch": app.watch.remove(str(body.get("id", "")))})
+                    if a == "check":
+                        n = app.watch.check()
+                        return self._json({"watch": app.watch.public(), "msg": f"أُضيفت {n} حلقات جديدة" if n else "لا حلقات جديدة"})
+                    raise ValueError("إجراء غير معروف")
+                if path == "/api/kits":
+                    names = kits.act(app.env, app.settings, body.get("act"), body.get("name"))
+                    return self._json({"kits": names, "settings": app.settings.public()})
                 if path == "/api/backup":
                     if backup.mode(app.env) != "kaggle":
                         raise ValueError("النسخ الاحتياطي يعمل على Kaggle مع KAGGLE_USERNAME و KAGGLE_KEY في Secrets")
@@ -619,6 +668,11 @@ def handler(app):
                 app.settings.update({"brand": {"watermark": dst.name}})
             if kind == "font":
                 app.settings.update({"brand": {"font": dst.name}})
+            if kind == "music":
+                try:
+                    audio.analyze_music(dst, app.env.music / ".meta.json")
+                except Exception:
+                    pass
             if kind.startswith(("frame_", "intro_", "outro_")):
                 for old in app.env.assets.glob(f"{kind}.*"):
                     if old != dst:

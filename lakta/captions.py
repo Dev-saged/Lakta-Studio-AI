@@ -61,6 +61,28 @@ def _hook_top(brand, short):
     return 0.14 if short else 0.08
 
 
+ORDINALS = {"اولا": 1, "ثانيا": 2, "ثالثا": 3, "رابعا": 4, "خامسا": 5, "سادسا": 6, "سابعا": 7,
+            "الاول": 1, "الثاني": 2, "الثالث": 3, "الرابع": 4, "الخامس": 5}
+AR_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+
+
+def ordinals(words):
+    """[(زمن، رقم)] عند تعداد المتكلم «أولاً، ثانياً…» بترتيب صحيح فقط"""
+    out, want = [], 1
+    for w in words:
+        x = _norm(w["w"])
+        n = ORDINALS.get(x) or (ORDINALS.get(x[1:]) if x[:1] in "وف" else None)
+        if n == want or (n and out and n == out[-1][1] + 1):
+            out.append((w["s"], n))
+            want = n + 1
+    return out if len(out) >= 2 else []
+
+
+def _circle(r):
+    k = round(r * 0.5523)
+    return (f"m 0 {-r} b {k} {-r} {r} {-k} {r} 0 b {r} {k} {k} {r} 0 {r} b {-k} {r} {-r} {k} {-r} 0 b {-r} {-k} {-k} {-r} 0 {-r}")
+
+
 def find_phrase(words, phrase):
     """(بداية، نهاية) أول ظهور للعبارة في الكلمات المنطوقة بمطابقة متسامحة"""
     toks = [_norm(t) for t in str(phrase or "").split() if _norm(t)]
@@ -144,6 +166,21 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None, 
         if ex.get("part"):
             sy = y - int(W * 0.09 if short else H * 0.11)
             lines.append(f"Dialogue: 5,{_t(0.05)},{_t(min(dur, 1.9))},Sub,,0,0,0,,{{\\an5\\move({W // 2},{sy + 40},{W // 2},{sy},0,320)\\fad(160,260)}}{_esc(ex['part'])}")
+    marks = ex.get("marks") or []
+    for i, (t, num) in enumerate(marks):
+        # شارة رقم متحركة عند كل نقطة يعدّدها المتكلم، مع حلقة تتسع حولها
+        end = min(dur, marks[i + 1][0] if i + 1 < len(marks) else t + 3.0, t + 3.0)
+        if t >= dur or end - t < 0.4:
+            continue
+        r = int(W * (0.075 if short else 0.045))
+        cx, cy = W - side_r - r, int(H * (0.24 if short else 0.2))
+        acc, ink = _ass_color(tpl.get("accent"), "&H4AA2C9&"), _ass_color(tpl.get("ink"), "&HF6EBD0&")
+        lines.append(f"Dialogue: 7,{_t(t)},{_t(end)},Punch,,0,0,0,,{{\\an7\\pos({cx},{cy})\\p1\\bord0\\shad3\\1c{acc}"
+                     f"\\fscx20\\fscy20\\t(0,220,\\fscx100\\fscy100)\\fad(0,200)}}{_circle(r)}{{\\p0}}")
+        lines.append(f"Dialogue: 7,{_t(t)},{_t(min(end, t + 0.9))},Punch,,0,0,0,,{{\\an7\\pos({cx},{cy})\\p1\\bord0\\shad0\\1a&HFF&"
+                     f"\\3c{acc}\\bord4\\t(0,900,\\fscx210\\fscy210\\3a&HFF&)}}{_circle(r)}{{\\p0}}")
+        lines.append(f"Dialogue: 8,{_t(t)},{_t(end)},Punch,,0,0,0,,{{\\an5\\pos({cx},{cy + r // 12})\\fs{int(r * 1.25)}\\bord0\\shad0"
+                     f"\\1c{ink}\\fscx20\\fscy20\\t(60,280,\\fscx100\\fscy100)\\fad(0,200)}}{''.join(AR_DIGITS[int(d)] for d in str(num))}")
     sp = ex.get("speaker") or {}
     if sp.get("name") and dur > 6:
         # شريط اسم المتكلم: ينزلق من الطرف ويبقى ثلاث ثوانٍ
