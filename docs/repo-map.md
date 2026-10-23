@@ -48,6 +48,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Transcribe: BatchedInferencePipeline (batch CONFIG.whisper_batch on GPU, 8 on CPU) with sequential fallback; model preloaded in a thread at job start; speed logged
 - Smart cut: reframe.scenes (ffmpeg scene>0.3) feeds edit.subdivide + reframe key snapping; smooth zoom = scale eval=frame (capability-checked, falls back to hard crop); edl.kw punches
 - Layout opt track|active|split: reframe._two_speakers (1D clustering + mouth motion); split returns dict crop rendered as vstack
+- Captions extras: director 'punch' phrase located by captions.find_phrase → dim + big text (regular captions suppressed); brand.safe_zone margins; brand.title_card intro/outro (outro skipped when template CTA shows)
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
 
 ## Solved bugs (never reintroduce)
