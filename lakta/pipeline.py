@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, captions, covers, director, edit, ingest, package, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, backup, captions, covers, director, edit, ingest, package, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram, safe_name
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide"}
@@ -47,7 +47,7 @@ class Pipeline:
         if a["mode"] != "original" and (a["engine"] == "gemini" or a["text"] != "same" or a["dialect"] != "original") and not has_key:
             raise RuntimeError("هذا الخيار يحتاج مفتاح Gemini · أضفه من الإعدادات")
         try:
-            self._run(job, opts, a, brand, work, out, tg, gpu, has_key)
+            return self._run(job, opts, a, brand, work, out, tg, gpu, has_key)
         finally:
             shutil.rmtree(work, ignore_errors=True)
 
@@ -61,52 +61,74 @@ class Pipeline:
         family = captions.font_family(font_file)
         job.set(voice_label=voice_label(a))
 
-        # ١) المصدر · ويبدأ تحميل نموذج التفريغ بالتوازي
-        transcribe.preload(st.get("whisper"), gpu)
-        job.step("download")
-        src_opt = opts["source"]
-        if src_opt["type"] == "file":
-            src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
+        proj = out / "project.json"
+        if job.data.get("phase") == "produce" and proj.exists():
+            # إعادة إخراج أو بعد المراجعة: المصدر والتفريغ واللقطات محفوظة
+            pj = json.loads(proj.read_text("utf-8"))
+            src, meta, tr, clips, seo = pj["src"], pj["meta"], pj["tr"], pj["clips"], pj["seo"]
+            if not Path(src["path"]).exists():
+                raise RuntimeError("الفيديو المصدر لم يعد محفوظاً · أعد الإنتاج من البداية")
+            dur = meta["duration"]
+            for k in ("download", "transcribe", "direct"):
+                job.skip(k)
+            for c in clips:
+                c["files"] = {}
+                c.pop("covers", None)
+            job.set(clips=_public(clips), seo=seo, title=src["title"])
+            log("إعادة الإخراج من المشروع المحفوظ")
         else:
-            url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
-            # «فخم» مع الشورتس: تنزيل حتى 4K ليبقى القص العمودي حاداً
-            dl_h = 2160 if st.get("quality") == "premium" and opts["formats"].get("short") else None
-            src = ingest.download(url, work, st, env, log, job.progress, job.note, dl_h)
-        meta = ingest.describe(src)
-        dur = meta["duration"]
-        job.set(title=src["title"], url=src["url"], duration=round(dur, 1))
-        job.note(_mmss(dur))
-        tg.message(f"⚙️ لقطة: بدأ إنتاج «{src['title']}» · {opts['parts']} أجزاء")
+            # ١) المصدر · ويبدأ تحميل نموذج التفريغ بالتوازي
+            transcribe.preload(st.get("whisper"), gpu)
+            job.step("download")
+            src_opt = opts["source"]
+            if src_opt["type"] == "file":
+                src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
+            else:
+                url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
+                # «فخم» مع الشورتس: تنزيل حتى 4K ليبقى القص العمودي حاداً
+                dl_h = 2160 if st.get("quality") == "premium" and opts["formats"].get("short") else None
+                src = ingest.download(url, work, st, env, log, job.progress, job.note, dl_h)
+            meta = ingest.describe(src)
+            dur = meta["duration"]
+            job.set(title=src["title"], url=src["url"], duration=round(dur, 1))
+            job.note(_mmss(dur))
+            tg.message(f"⚙️ لقطة: بدأ إنتاج «{src['title']}» · {opts['parts']} أجزاء")
 
-        # ٢) التفريغ
-        job.step("transcribe")
-        wav16 = transcribe.extract_audio(src["path"], work / "a16.wav", cancel) if meta["has_audio"] else None
-        if wav16:
-            job.set(peaks=transcribe.peaks(wav16))
-            tr = transcribe.transcribe(wav16, src.get("vtt"), st.get("whisper"), gpu, log, cancel, job.progress)
-        else:
-            tr = {"words": [], "segments": [], "source": "none"}
-        segments = tr["segments"] if tr["source"] == "youtube" else transcribe.regroup(tr["words"])
-        (out / "transcript.json").write_text(json.dumps([[w["s"], w["e"], w["w"]] for w in tr["words"]], ensure_ascii=False), "utf-8")
-        job.note(f"{len(tr['words'])} كلمة · {'Whisper' if tr['source'] == 'whisper' else 'يوتيوب'}" + (" · GPU" if gpu else ""))
+            # ٢) التفريغ
+            job.step("transcribe")
+            wav16 = transcribe.extract_audio(src["path"], work / "a16.wav", cancel) if meta["has_audio"] else None
+            if wav16:
+                job.set(peaks=transcribe.peaks(wav16))
+                tr = transcribe.transcribe(wav16, src.get("vtt"), st.get("whisper"), gpu, log, cancel, job.progress)
+            else:
+                tr = {"words": [], "segments": [], "source": "none"}
+            segments = tr["segments"] if tr["source"] == "youtube" else transcribe.regroup(tr["words"])
+            (out / "transcript.json").write_text(json.dumps([[w["s"], w["e"], w["w"]] for w in tr["words"]], ensure_ascii=False), "utf-8")
+            job.note(f"{len(tr['words'])} كلمة · {'Whisper' if tr['source'] == 'whisper' else 'يوتيوب'}" + (" · GPU" if gpu else ""))
 
-        # ٣) المونتير
-        job.step("direct")
-        clips, seo = None, {}
-        parts = max(1, min(CONFIG["clip"]["max_parts"], int(opts["parts"])))
-        if has_key and segments:
-            try:
-                clips, seo = director.pick_clips(st, segments, dur, parts, src["title"], src["description"], log)
-            except Exception as e:
-                log(f"تعذّر تحليل Gemini ({director.friendly(e)}) · تقطيع تلقائي")
-        if not clips:
-            clips = director.fallback_clips(dur, parts, segments)
-        seo = {"title": seo.get("title") or src["title"], "thumb": seo.get("thumb") or " ".join(src["title"].split()[:3]),
-               "description": seo.get("description") or "", "hashtags": seo.get("hashtags") or ["لقطة", "تريند"]}
-        for i, c in enumerate(clips, 1):
-            c.update(n=i, title=c["title"] or seo["title"], hook=c["hook"] or seo["thumb"], thumb=c["thumb"] or seo["thumb"], files={})
-        job.set(clips=_public(clips), seo=seo)
-        job.note(f"{len(clips)} من {max(1, len(segments))} مقطع")
+            # ٣) المونتير
+            job.step("direct")
+            clips, seo = None, {}
+            parts = max(1, min(CONFIG["clip"]["max_parts"], int(opts["parts"])))
+            if has_key and segments:
+                try:
+                    clips, seo = director.pick_clips(st, segments, dur, parts, src["title"], src["description"], log)
+                except Exception as e:
+                    log(f"تعذّر تحليل Gemini ({director.friendly(e)}) · تقطيع تلقائي")
+            if not clips:
+                clips = director.fallback_clips(dur, parts, segments)
+            seo = {"title": seo.get("title") or src["title"], "thumb": seo.get("thumb") or " ".join(src["title"].split()[:3]),
+                   "description": seo.get("description") or "", "hashtags": seo.get("hashtags") or ["لقطة", "تريند"]}
+            for i, c in enumerate(clips, 1):
+                c.update(n=i, title=c["title"] or seo["title"], hook=c["hook"] or seo["thumb"], thumb=c["thumb"] or seo["thumb"], files={})
+            job.set(clips=_public(clips), seo=seo)
+            job.note(f"{len(clips)} من {max(1, len(segments))} مقطع")
+            src = _keep_source(env, job.id, src)
+            proj.write_text(json.dumps({"src": src, "meta": meta, "tr": tr, "clips": clips, "seo": seo}, ensure_ascii=False), "utf-8")
+            if opts.get("review"):
+                log("اللقطات جاهزة للمراجعة")
+                return "review"
+
 
         # ٤) الصوت الجديد
         plan = []
@@ -234,6 +256,21 @@ class Pipeline:
             except Exception as e:
                 log(f"تعذّر الإرسال لتيليجرام: {str(e)[:160]}")
         log("اكتمل الإنتاج")
+        backup.schedule(env)
+
+
+def _keep_source(env, jid, src):
+    """نقل الفيديو المنزّل لمجلد دائم لإعادة الإخراج، مع إبقاء آخر عدد محدد فقط"""
+    p = Path(src["path"])
+    if p.parent != env.uploads and p.exists():
+        dst = env.sources / f"{jid}{p.suffix}"
+        shutil.move(str(p), dst)
+        src = {**src, "path": str(dst), "vtt": None}
+    keep = CONFIG["cache"]["sources"]
+    old = sorted(env.sources.glob("*"), key=lambda f: f.stat().st_mtime, reverse=True)[keep:]
+    for f in old:
+        f.unlink(missing_ok=True)
+    return src
 
 
 def _gen_thumb(env, brand, fmt, font_file, work):

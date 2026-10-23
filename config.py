@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.12.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.13.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -22,6 +22,7 @@ CONFIG = {
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},
     "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
     "trash": {"days": 7},
+    "cache": {"sources": 5},
     "grades": {
         "none": {"label": "بدون", "vf": ""},
         "cinema": {"label": "سينمائي", "vf": "colorbalance=rs=-0.04:bs=0.06:rh=0.06:bh=-0.05,curves=preset=medium_contrast,eq=saturation=1.04"},
@@ -68,7 +69,7 @@ CONFIG = {
             },
         },
         "job": {
-            "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False, "short_fill": False,
+            "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False, "short_fill": False, "review": False,
             "edit": {"silence": True, "zoom": True, "cold_open": True, "sfx": True, "smooth": True, "scenes": True},
             "layout": "track",
             "audio": {"mode": "original", "engine": "edge", "text": "same", "dialect": "original",
