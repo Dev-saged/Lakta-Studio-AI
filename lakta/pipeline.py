@@ -169,6 +169,7 @@ class Pipeline:
             at = captions.find_phrase(p["words"], c.get("punch")) if brand.get("punch", True) else None
             p["punch"] = (at[0], at[1], c["punch"]) if at else None
             fx = _fx(p, c.get("keywords"), speed)
+            stab = render.stab_prep(src["path"], p["s"], p["dur_src"], work, i, cancel) if st.get("stabilize") else None
             if (opts.get("edit") or {}).get("sfx", True):
                 mix = audio.add_sfx(mix, work / f"mixfx_{i}.wav", fx["sfx"], env.assets, cancel)
             crop = None
@@ -204,7 +205,9 @@ class Pipeline:
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
                             progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
                             edl=p.get("edl"), codec=st.get("codec"),
-                            look={"grade": st.get("grade"), "grain": st.get("grain")}, fill=opts.get("short_fill"), fx=fx)
+                            look={"grade": st.get("grade"), "grain": st.get("grain"), "auto": st.get("auto_color") is not False,
+                                  "src_h": meta["height"] if st.get("lowres_fix") is not False else None, "stab": stab},
+                            fill=opts.get("short_fill"), fx=fx)
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)

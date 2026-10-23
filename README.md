@@ -13,7 +13,7 @@
 <p align="center"><b>مصنع لقطات قصيرة بالذكاء الاصطناعي.</b> يحوّل الحلقات الطويلة والبودكاست إلى Shorts و Reels ومقاطع يوتيوب عريضة جاهزة للنشر، بواجهة عربية تعمل من المتصفح على Kaggle و Colab و VPS.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-34.8.0-2B4BD8?style=for-the-badge" alt="version">
+  <img src="https://img.shields.io/badge/version-34.12.0-2B4BD8?style=for-the-badge" alt="version">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FFmpeg-engine-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg">
   <img src="https://img.shields.io/badge/Gemini-director-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Gemini">
@@ -66,7 +66,7 @@
 يقرأ التفريغ الكامل ويختار أقوى اللقطات غير المتداخلة، مع عنوان وخطاف ونص غلاف ودرجة فيروسية وكلمات مفتاحية لكل لقطة، وSEO للحلقة كاملة.
 
 #### <img src="docs/media/icons/captions.svg" width="20" align="center"> ترجمة كاريوكي متحركة
-تفريغ دقيق بـ faster-whisper على GPU. خمسة أنماط (أصفر كلاسيكي، صندوق كوبالت، قلم تظليل، توهج، كلمة كبيرة)، وحركة نبضة أو قفزة، وتشكيل عربي سليم.
+تفريغ دقيق وسريع بـ faster-whisper بالدفعات المتوازية. خمسة أنماط (أصفر كلاسيكي، صندوق كوبالت، قلم تظليل، توهج، كلمة كبيرة)، وحركة نبضة أو قفزة، وعبارة ذروة بخط ضخم، ومنطقة آمنة بعيدة عن أزرار المنصات، وتشكيل عربي سليم.
 
 #### <img src="docs/media/icons/voice.svg" width="20" align="center"> صوت جديد ولهجات
 إعادة توليد الكلام بصوت معلّق (Edge مجاناً أو Gemini TTS)، حرفياً أو بإعادة صياغة، وبأي لهجة. الترجمة على الشاشة تتزامن مع الصوت الجديد.
@@ -75,13 +75,13 @@
 الأصلي كما هو، أو صوت جديد فوق الخلفية الأصلية (فصل بـ Demucs)، أو صوت جديد مع موسيقى من مكتبتك. مع تنقية صوت المتكلم ومستوى -14 LUFS.
 
 #### <img src="docs/media/icons/cut.svg" width="20" align="center"> مونتاج ذكي
-حذف الصمت والتأتأة، زوم ديناميكي متناوب، افتتاحية بأقوى جملة مع وميض انتقال، ومؤثرات صوتية مولّدة محلياً بلا حقوق.
+حذف الصمت والتأتأة، قطعات تتبع تغيّر المشهد، زوم سينمائي ناعم مع نبضة على الكلمات المفتاحية، افتتاحية بأقوى جملة مع وميض انتقال، ومؤثرات صوتية مولّدة محلياً بلا حقوق.
 
 </td>
 <td width="50%" valign="top">
 
 #### <img src="docs/media/icons/phone.svg" width="20" align="center"> شورتس 9:16 بتتبع الوجه
-القص يتبع المتكلم (YuNet)، أو خلفية ضبابية تعرض الإطار العريض كاملاً.
+القص يتبع المتكلم (YuNet)، أو المتكلم النشط بحركة الفم، أو شاشة مقسومة لمتكلمَين، أو خلفية ضبابية تعرض الإطار العريض كاملاً.
 
 #### <img src="docs/media/icons/palette.svg" width="20" align="center"> هوية بصرية كاملة
 مولّد قوالب بأربعة أنماط (سينمائي، شريط علوي، زوايا، ملصق)، شارة الجزء، شريط تقدم متحرك، دعوة للمتابعة، علامة مائية، و16 خطاً عربياً مع تنزيل أي خط من Google Fonts.
@@ -90,7 +90,7 @@
 ثلاثة تصاميم لكل جزء، مع اختيار أوضح إطار للوجه وتلوين أقوى كلمة.
 
 #### <img src="docs/media/icons/film.svg" width="20" align="center"> جودة إخراج عالية
-محرك FFmpeg مع NVENC على GPU. ثلاثة ملفات جودة، وترميز H.264 أو HEVC داخل MP4، وتلوين سينمائي، وحبيبات فيلم اختيارية.
+محرك FFmpeg مع NVENC على GPU. ثلاثة ملفات جودة، وترميز H.264 أو HEVC داخل MP4، وتلوين سينمائي، وضبط إضاءة تلقائي، وتثبيت للصورة، وتحسين للمصادر الضعيفة.
 
 #### <img src="docs/media/icons/send.svg" width="20" align="center"> تسليم مرتب
 ملف مضغوط باسم المشروع، فيه مجلد لكل جزء بأسماء عربية. يُرسل إلى تيليجرام، ويُقسَّم حسب الجزء إن تجاوز 50MB، مع نسخة خفيفة للفيديو الكبير.
