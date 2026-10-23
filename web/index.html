@@ -343,6 +343,24 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto var(--s3)}
 .pop-in{display:grid;gap:var(--s4)}
 .pop.rv{width:min(100%,560px);max-height:94dvh}
+.dash summary{cursor:pointer;list-style:none;min-height:44px;display:flex;align-items:center;gap:var(--s2)}
+.dash summary::-webkit-details-marker{display:none}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--s3);margin-block:var(--s3)}
+.dash-tile{border:1px solid var(--line);border-radius:var(--r);padding:var(--s3);display:grid;gap:4px}
+.dash-tile span{font:600 var(--t-xs)/1.3 var(--f-body);color:var(--muted)}
+.dash-tile b{font:800 var(--t-xl)/1 var(--f-display)}
+.dash-ring{display:flex;align-items:center;gap:var(--s3)}
+.dash-ring svg{width:56px;height:56px;rotate:-90deg}
+.bars{display:grid;gap:var(--s2)}
+.bars div{display:grid;grid-template-columns:7.5em 1fr auto;gap:var(--s2);align-items:center;font:500 var(--t-s)/1.3 var(--f-body)}
+.bars i{display:block;height:10px;border-radius:5px;background:var(--accent);inline-size:var(--w);transform-origin:right;animation:grow .8s var(--ease) both}
+@keyframes grow{from{scale:0 1}}
+.daily{display:flex;align-items:end;gap:4px;height:64px;direction:ltr}
+.daily i{flex:1;border-radius:3px 3px 0 0;background:var(--accent);min-height:3px;height:var(--h)}
+.kits{display:flex;flex-wrap:wrap;gap:var(--s2)}
+.kits .chip{position:relative}
+.kits [data-kit-del]{margin-inline-start:6px;opacity:.6}
+@media (prefers-reduced-motion:reduce){.bars i{animation:none}}
 .rv video{width:100%;max-height:34dvh;border-radius:var(--r);background:oklch(.12 .02 262);display:block}
 .rv-range{direction:ltr;position:relative;height:56px;border-radius:var(--r);background:var(--surface-2);overflow:hidden;touch-action:none}
 .rv-range .sel{position:absolute;inset-block:0;background:var(--mark);border-inline:3px solid var(--accent)}
@@ -566,7 +584,8 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" data-v="all">الكل</button><button type="button" data-v="short">شورتس</button><button type="button" data-v="wide">عريض</button><button type="button" data-v="covers">الأغلفة</button>
         </div>
       </header>
-      <section style="--i:1" id="lib"></section>
+      <details class="card dash" style="--i:1" id="dash"><summary class="h2"><svg class="ic"><use href="#i-chip"/></svg>لوحة الإحصاءات</summary><div id="dash-body"><div class="tl sk"></div></div></details>
+      <section style="--i:2" id="lib"></section>
     </main>
 
     <!-- الهوية -->
@@ -575,6 +594,11 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <h1 class="h1">الهوية البصرية</h1>
         <p class="sub">تُطبَّق على كل اللقطات والأغلفة الجديدة · تُحفظ تلقائياً</p>
       </header>
+      <section class="card" style="--i:1">
+        <h2 class="h2"><svg class="ic"><use href="#i-brand"/></svg>الهويات المحفوظة</h2>
+        <div class="kits" id="kits"></div>
+        <div class="box-row"><input class="box" id="kit-name" maxlength="40" placeholder="اسم القناة أو العميل" aria-label="اسم الهوية"><button type="button" class="btn ghost" id="kit-save" style="min-height:48px">حفظ الحالية</button></div>
+      </section>
       <section class="sheet" style="--i:1" id="tpl-card">
         <h2 class="h2"><svg class="ic"><use href="#i-spark"/></svg>مولّد القوالب</h2>
         <p class="sub">صِف هوية قناتك، ويصمم لك قالباً بألوانها في أطراف الشاشة فقط، فلا يغطي الوجه ولا الترجمة.</p>
@@ -639,6 +663,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="row"><div><b>عبارة الذروة</b><small>أقوى جملة بخط ضخم يملأ الشاشة لثانية · تحتاج Gemini</small></div><input type="checkbox" class="sw" id="b-punch" aria-label="عبارة الذروة"></div>
         <div class="row"><div><b>منطقة آمنة للمنصات</b><small>الترجمة بعيدة عن أزرار TikTok و Reels و Shorts</small></div><input type="checkbox" class="sw" id="b-safe" aria-label="منطقة آمنة"></div>
         <div class="row"><div><b>اسم المتكلم أسفل الشاشة</b><small>يستنتجه Gemini من الحلقة أو تكتبه في المراجعة</small></div><input type="checkbox" class="sw" id="b-lower" aria-label="اسم المتكلم"></div>
+        <div class="row"><div><b>شارات الأرقام المتحركة</b><small>رقم يظهر بحركة عند «أولاً، ثانياً…» في كلام المتكلم</small></div><input type="checkbox" class="sw" id="b-motion" aria-label="شارات الأرقام"></div>
         <div class="row"><div><b>ترجمة ثانية</b><small>سطر صغير بلغة أخرى تحت الترجمة العربية · تحتاج Gemini</small></div><input type="checkbox" class="sw" id="b-bi" aria-label="ترجمة ثانية"></div>
         <div class="seg sm" id="b-lang" aria-label="لغة الترجمة الثانية"><button type="button" data-v="en">English</button><button type="button" data-v="fr">Français</button><button type="button" data-v="tr">Türkçe</button></div>
         <div class="row"><div><b>بطاقة عنوان وختام</b><small>عنوان متحرك في البداية ودعوة للمتابعة في النهاية</small></div><input type="checkbox" class="sw" id="b-card" aria-label="بطاقة عنوان وختام"></div>
@@ -758,6 +783,14 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <label class="btn ghost" for="up-cookies"><svg class="ic"><use href="#i-upload"/></svg>رفع cookies.txt<input type="file" id="up-cookies" accept=".txt" hidden></label>
           <button type="button" class="icb" id="cookies-del" aria-label="حذف ملف الكوكيز" hidden><svg class="ic"><use href="#i-trash"/></svg></button>
         </div>
+      </section>
+      <section class="card" style="--i:7">
+        <h2 class="h2"><svg class="ic"><use href="#i-trend"/></svg>مراقبة القنوات</h2>
+        <p class="sub">كل حلقة جديدة تنزل على القناة تُنتج تلقائياً وتصلك على تيليجرام · فحص كل نصف ساعة</p>
+        <div class="list" id="watch-list"></div>
+        <div class="box-row"><input class="box" id="watch-url" dir="ltr" inputmode="url" placeholder="https://www.youtube.com/@channel" aria-label="رابط القناة"><button type="button" class="btn ghost" id="watch-add" style="min-height:48px">إضافة</button></div>
+        <div class="field"><span class="lbl">أجزاء من كل حلقة</span><div class="seg sm" id="watch-parts"><button type="button" data-v="1">١</button><button type="button" data-v="2">٢</button><button type="button" data-v="3">٣</button></div></div>
+        <button type="button" class="btn ghost sm" id="watch-check">فحص الآن</button>
       </section>
       <section class="card" style="--i:7">
         <h2 class="h2"><svg class="ic"><use href="#i-link"/></svg>الرابط الثابت والحفظ الدائم</h2>
@@ -1063,8 +1096,9 @@ function initVoice() {
     const a = A(), s = S.state(); if (!a || !s) return;
     pm(); pe(); pt(); pd();
     $("#v-opts").hidden = a.mode === "original";
-    $("#v-music-wrap").hidden = a.mode !== "voice";
-    $("#v-music").innerHTML = `<option value="">بدون موسيقى</option>` + s.music.map(m => `<option ${m === a.music ? "selected" : ""} value="${esc(m)}">${esc(m)}</option>`).join("");
+    $("#v-music-wrap").hidden = a.mode === "bg";
+    $("#v-music-wrap label").textContent = a.mode === "original" ? "موسيقى خفيفة تحت الصوت الأصلي" : "موسيقى الخلفية";
+    $("#v-music").innerHTML = `<option value="">بدون موسيقى</option>` + (s.music.length ? `<option value="auto" ${a.music === "auto" ? "selected" : ""}>تلقائي حسب مزاج كل لقطة</option>` : "") + s.music.map(m => `<option ${m === a.music ? "selected" : ""} value="${esc(m)}">${esc(m)}</option>`).join("");
     $("#v-voices").innerHTML = voiceList(a.engine, a.dialect).map(([id, name]) => `
       <button type="button" class="voice" data-voice="${esc(id)}" aria-pressed="${id === a.voice}"><div><b>${esc(name)}</b><small class="mono">${esc(id)}</small></div>
       <span class="icb" role="button" tabindex="0" aria-label="استماع إلى ${esc(name)}" data-preview="${esc(id)}"><svg class="ic"><use href="#i-play"/></svg></span></button>`).join("");
@@ -1370,7 +1404,28 @@ $("#clip-pop").addEventListener("toggle", e => { if (e.newState === "closed") $$
 
 // ===== المكتبة =====
 let libFilter = "all";
+async function loadStats() {
+  try {
+    const d = await api("/api/stats"), max = Math.max(1, ...d.daily), smax = Math.max(1, ...d.steps.map(x => x.avg));
+    const C = 2 * Math.PI * 22;
+    $("#dash-body").innerHTML = `
+      <div class="dash-grid">
+        <div class="dash-tile"><span>مهام مكتملة</span><b>${ar(d.done)}</b></div>
+        <div class="dash-tile"><span>لقطات منتجة</span><b>${ar(d.clips)}</b></div>
+        <div class="dash-tile"><span>ساعات معالجة</span><b>${ar(d.hours)}</b></div>
+        <div class="dash-tile"><span>متوسط الدرجة الفيروسية</span><b>${ar(d.score)}</b></div>
+        <div class="dash-tile dash-ring"><svg viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="22" fill="none" stroke="var(--line)" stroke-width="5"/>
+          <circle cx="25" cy="25" r="22" fill="none" stroke="var(--ok)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(C * d.success / 100).toFixed(1)} ${C.toFixed(1)}"/></svg>
+          <div><span>نسبة النجاح</span><b>${ar(d.success)}%</b></div></div>
+      </div>
+      <span class="lbl">إنتاج آخر أسبوعين</span>
+      <div class="daily" role="img" aria-label="عدد المهام المكتملة يومياً">${d.daily.map(v => `<i style="--h:${(v / max * 100).toFixed(0)}%" title="${v}"></i>`).join("")}</div>
+      ${d.steps.length ? `<span class="lbl">متوسط زمن كل مرحلة</span><div class="bars">${d.steps.map(x => `<div><span>${esc(x.label)}</span><i style="--w:${(x.avg / smax * 100).toFixed(0)}%"></i><b class="mono">${x.avg < 60 ? ar(Math.round(x.avg)) + "ث" : mmss(x.avg)}</b></div>`).join("")}</div>` : ""}
+      ${d.top.length ? `<span class="lbl">أقوى اللقطات</span><div class="list">${d.top.map(c => `<div class="row"><span class="ring sm done" style="--p:${c.score}"><b>${ar(c.score)}</b></span><div><b>${esc(c.title)}</b><small>${esc(c.jtitle)}</small></div></div>`).join("")}</div>` : ""}`;
+  } catch (err) { $("#dash-body").innerHTML = `<p class="err">${esc(err.message)}</p>`; }
+}
 function initLibrary() {
+  $("#dash").addEventListener("toggle", e => { if (e.target.open) loadStats(); });
   const paint = bindGroup("#lib-filter", () => libFilter, v => { libFilter = v; renderLib(); });
   paint();
   $("#lib").addEventListener("click", async e => {
@@ -1425,8 +1480,24 @@ function fontFamily(name) {
   return `"${fam}",var(--f-display)`;
 }
 const fontLabel = f => f.replace(/\.(ttf|otf)$/i, "").replace(/^Google-/, "").replace(/^Lakta/, "").replace(/-(ExtraBold|Black|Bold)$/, "").replace(/([a-z])([A-Z])/g, "$1 $2");
+function paintKits(st) {
+  $("#kits").innerHTML = (st.kits || []).length ? st.kits.map(k => `<span class="chip"><button type="button" data-kit="${esc(k)}" style="all:unset;cursor:pointer">${esc(k)}</button><button type="button" class="icb" data-kit-del="${esc(k)}" aria-label="حذف ${esc(k)}" style="width:28px;height:28px"><svg class="ic"><use href="#i-x"/></svg></button></span>`).join("")
+    : `<p class="sub">احفظ هوية كل قناة أو عميل وبدّل بينها بضغطة</p>`;
+}
+async function kitAct(act, name) {
+  try {
+    const r = await api("/api/kits", { act, name });
+    S.state.set({ ...S.state(), kits: r.kits, settings: r.settings });
+    toast({ save: "حُفظت الهوية", apply: `طُبّقت هوية «${name}»`, delete: "حُذفت الهوية" }[act]); buzz(6);
+  } catch (err) { fail(err); }
+}
 function initBrand() {
   const B = () => S.state().settings.brand;
+  $("#kit-save").addEventListener("click", () => { const n = $("#kit-name").value.trim(); if (n) kitAct("save", n).then(() => { $("#kit-name").value = ""; }); else toast("اكتب اسماً للهوية", true); });
+  $("#kits").addEventListener("click", e => {
+    const d = e.target.closest("[data-kit-del]"); if (d) return kitAct("delete", d.dataset.kitDel);
+    const k = e.target.closest("[data-kit]"); if (k) kitAct("apply", k.dataset.kit);
+  });
   const ps = bindGroup("#b-style", () => B().caption_style, v => setBrand({ caption_style: v }));
   const pw = bindGroup("#b-words", () => B().words, v => setBrand({ words: +v }));
   const pa = bindGroup("#b-anim", () => B().caption_anim || "pop", v => setBrand({ caption_anim: v }));
@@ -1434,7 +1505,7 @@ function initBrand() {
   const pp = bindGroup("#b-pos", () => B().watermark_pos, v => setBrand({ watermark_pos: v }));
   $("#b-frame").addEventListener("change", e => setBrand({ frame_on: e.target.checked }));
   const pl = bindGroup("#b-lang", () => B().trans_lang || "en", v => setBrand({ trans_lang: v }));
-  [["#b-punch", "punch"], ["#b-safe", "safe_zone"], ["#b-card", "title_card"], ["#b-lower", "lower_third"], ["#b-bi", "bilingual"]].forEach(([id, k]) => $(id).addEventListener("change", e => setBrand({ [k]: e.target.checked })));
+  [["#b-punch", "punch"], ["#b-safe", "safe_zone"], ["#b-card", "title_card"], ["#b-lower", "lower_third"], ["#b-bi", "bilingual"], ["#b-motion", "motion_gfx"]].forEach(([id, k]) => $(id).addEventListener("change", e => setBrand({ [k]: e.target.checked })));
   $("#b-color-custom").addEventListener("input", debounce(e => setBrand({ frame_color: e.target.value.toUpperCase() }), 200));
   $("#b-fonts").addEventListener("click", async e => {
     const del = e.target.closest("[data-del-font]");
@@ -1467,6 +1538,7 @@ function initBrand() {
   $("#wm-del").addEventListener("click", async () => { try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "watermark", name: B().watermark })) }); setBrand({ watermark: "" }); } catch (e) { fail(e); } });
   effect(() => {
     const st = S.state(); if (!st) return; const b = st.settings.brand;
+    paintKits(st); $("#b-motion").checked = b.motion_gfx !== false;
     ps(); pw(); pc(); pp(); pa();
     $("#b-frame").checked = b.frame_on;
     $("#b-lower").checked = b.lower_third !== false; $("#b-bi").checked = !!b.bilingual; pl(); $("#b-lang").hidden = !b.bilingual;
@@ -1585,6 +1657,17 @@ function initTemplates() {
 }
 
 // ===== الإعدادات =====
+let watchParts = 2;
+function paintWatch(st) {
+  $("#watch-list").innerHTML = (st.watch || []).length ? st.watch.map(w => `<div class="row"><div><b>${esc(w.title)}</b><small>${ar(w.parts)} أجزاء · أُنتجت ${ar(w.made || 0)} · آخر فحص ${w.checked ? ago(w.checked) : "—"}</small></div><button type="button" class="icb" data-watch-del="${esc(w.id)}" aria-label="إيقاف مراقبة ${esc(w.title)}"><svg class="ic"><use href="#i-trash"/></svg></button></div>`).join("")
+    : `<p class="sub">لا توجد قنوات مراقَبة</p>`;
+  $("#watch-check").hidden = !(st.watch || []).length;
+}
+async function watchAct(body, btn) {
+  if (btn) btn.disabled = true;
+  try { const r = await api("/api/watch", body); S.state.set({ ...S.state(), watch: r.watch }); if (r.msg) toast(r.msg); if (body.act === "check") await pullJobs(); buzz(6); return r; }
+  catch (err) { fail(err); } finally { if (btn) btn.disabled = false; }
+}
 function paintPersist(st) {
   const b = st.backup || {}, fx = st.fixed_url;
   $("#fx-sum").textContent = fx ? fx : "أضف في Secrets: LAKTA_RELAY_URL و LAKTA_RELAY_TOKEN بعد نشر deploy/relay-worker.js على Cloudflare";
@@ -1596,6 +1679,11 @@ function paintPersist(st) {
 }
 function initPrefs() {
   const P = () => S.state().settings;
+  const wp = bindGroup("#watch-parts", () => watchParts, v => { watchParts = +v; });
+  wp();
+  $("#watch-add").addEventListener("click", async e => { const url = $("#watch-url").value.trim(); if (!url) return toast("أدخل رابط القناة", true); if (await watchAct({ act: "add", url, parts: watchParts }, e.currentTarget)) { $("#watch-url").value = ""; toast("بدأت مراقبة القناة"); } });
+  $("#watch-check").addEventListener("click", e => watchAct({ act: "check" }, e.currentTarget));
+  $("#watch-list").addEventListener("click", e => { const b = e.target.closest("[data-watch-del]"); if (b) watchAct({ act: "remove", id: b.dataset.watchDel }); });
   $("#fx-copy").addEventListener("click", () => { navigator.clipboard?.writeText(S.state().fixed_url).then(() => toast("نُسخ الرابط الثابت")); buzz(5); });
   $("#bk-now").addEventListener("click", async e => { e.currentTarget.disabled = true; try { toast((await api("/api/backup", {})).msg); } catch (err) { fail(err); } });
   const pw = bindGroup("#p-whisper", () => P().whisper, v => savePref({ whisper: v }));
@@ -1642,7 +1730,7 @@ function initPrefs() {
 
   effect(() => {
     const st = S.state(); if (!st) return; const s = st.settings, e = st.env;
-    paintPersist(st);
+    paintPersist(st); paintWatch(st);
     pw(); pr(); pq(); pc(); pg();
     $("#p-grain").checked = !!s.grain; $("#p-vclean").checked = s.voice_clean !== false;
     $("#p-pack").checked = s.publish_pack !== false; $("#p-auto").checked = s.auto_color !== false; $("#p-lowres").checked = s.lowres_fix !== false; $("#p-stab").checked = !!s.stabilize;
@@ -1659,7 +1747,8 @@ function initPrefs() {
     $("#n-cookies").className = "note" + (st.cookies ? " ok" : "");
     $("#n-cookies").textContent = st.cookies === "file" ? "ملف الكوكيز مرفوع ✓" : st.cookies === "secret" ? "الكوكيز مقروءة من Secrets ✓" : "لا توجد كوكيز بعد";
     $("#cookies-del").hidden = st.cookies !== "file";
-    $("#music-list").innerHTML = st.music.length ? st.music.map(m => `<div class="row"><div><b>${esc(m)}</b></div><button class="icb" data-del-music="${esc(m)}" aria-label="حذف"><svg class="ic"><use href="#i-trash"/></svg></button></div>`).join("") : `<p class="sub">لا توجد مقاطع بعد</p>`;
+    const mm = st.music_meta || {}, MOOD = { calm: "هادئ", neutral: "متوسط", energetic: "حماسي" };
+    $("#music-list").innerHTML = st.music.length ? st.music.map(m => `<div class="row"><div><b>${esc(m)}</b>${mm[m] ? `<small>${MOOD[mm[m].mood] || ""} · ${ar(mm[m].bpm)} BPM</small>` : ""}</div><button class="icb" data-del-music="${esc(m)}" aria-label="حذف"><svg class="ic"><use href="#i-trash"/></svg></button></div>`).join("") : `<p class="sub">لا توجد مقاطع بعد</p>`;
     $("#srv-card").innerHTML = `<span class="icb"><svg class="ic"><use href="#i-chip"/></svg></span>
       <div><b style="font:600 var(--t-s)/1.3 var(--f-body)">${esc(e.name)} · ${S.online() ? "متصل" : "غير متصل"}</b><p class="sub mono" style="text-align:start">${esc(location.host)}</p></div>
       <div class="specs"><div><span>المعالج</span><b>${esc(e.gpu ? e.gpu.name : "CPU")}</b></div><div><span>المساحة الحرة</span><b>${e.disk_free_gb} GB</b></div><div><span>الترميز</span><b>${esc(e.encoder === "h264_nvenc" ? "NVENC" : "x264")}</b></div></div>`;

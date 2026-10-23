@@ -106,6 +106,16 @@ CLEAN_TTS = "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5,acompressor=threshol
 
 def mix(mode, out, dur, orig=None, voice=None, bg=None, music=None, cancel=None, clean=True):
     final = "loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000"
+    if mode == "original" and music:
+        # موسيقى خفيفة تنخفض تلقائياً تحت كلام المتكلم
+        cl = f"{CLEAN_ORIG}," if clean else ""
+        fc = [f"[0:a]aresample=48000,aformat=channel_layouts=stereo,{cl}asplit=2[v][key]",
+              "[1:a]aresample=48000,aformat=channel_layouts=stereo,volume=0.16[u]",
+              "[u][key]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=350[d]",
+              f"[v][d]amix=inputs=2:duration=first:normalize=0,{final}[a]"]
+        run(FF + ["-i", str(orig), "-stream_loop", "-1", "-i", str(music), "-filter_complex", ";".join(fc), "-map", "[a]",
+                  "-t", f"{dur:.3f}", "-ac", "2", str(out)], cancel=cancel)
+        return out
     if mode == "original":
         af = f"{CLEAN_ORIG},{final}" if clean else final
         run(FF + ["-i", str(orig), "-af", af, "-t", f"{dur:.3f}", "-ac", "2", str(out)], cancel=cancel)
@@ -163,3 +173,67 @@ def add_sfx(mix_wav, out, events, assets, cancel=None):
         return out
     except RuntimeError:
         return mix_wav
+
+
+# ===== تحليل الموسيقى: الإيقاع والطاقة والمزاج =====
+MOODS = {"calm": "هادئ", "neutral": "متوسط", "energetic": "حماسي"}
+
+
+def analyze_music(path, cache):
+    """BPM ومواضع النبضات وطاقة المقطع (يُحفظ في ذاكرة مؤقتة بحسب الاسم والحجم)"""
+    import json
+    import numpy as np
+    key = f"{Path(path).name}:{Path(path).stat().st_size}"
+    try:
+        meta = json.loads(cache.read_text("utf-8"))
+    except Exception:
+        meta = {}
+    if key in meta:
+        return meta[key]
+    sr, hop = 11025, 128
+    raw = subprocess.run(FF[:1] + ["-v", "error", "-i", str(path), "-t", "240", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"],
+                         capture_output=True, timeout=120).stdout
+    x = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    if x.size < sr * 5:
+        return {"bpm": 0, "mood": "neutral", "beats": [], "energy": 0}
+    n = x.size // hop
+    rms = np.sqrt((x[:n * hop].reshape(n, hop) ** 2).mean(axis=1) + 1e-9)
+    onset = np.maximum(0, np.diff(rms, prepend=rms[0]))
+    onset = (onset - onset.mean()) / (onset.std() + 1e-9)
+    fps = sr / hop
+    lags = np.arange(int(fps * 60 / 180), int(fps * 60 / 60) + 1)
+    ac = np.array([np.dot(onset[:-l], onset[l:]) / (len(onset) - l) for l in lags])
+    # تفضيل المدى الشائع حول 120 BPM لتجنّب اختيار نصف الإيقاع
+    prior = np.exp(-0.5 * (np.log2((60 * fps / lags) / 120) / 0.9) ** 2)
+    score = np.maximum(ac, 0) * prior
+    k = int(np.argmax(score))
+    lag = float(lags[k])
+    if 0 < k < len(score) - 1:
+        # استيفاء قطعي لدقة أعلى من حجم الإطار حتى لا تنزاح النبضات
+        a, b, c = score[k - 1], score[k], score[k + 1]
+        den = a - 2 * b + c
+        lag += 0.5 * (a - c) / den if den else 0
+    bpm = 60 * fps / lag
+    il = int(round(lag))
+    phase = int(np.argmax([sum(onset[min(n - 1, int(round(o + j * lag)))] for j in range(int((n - o) / lag))) for o in range(il)]))
+    beats = [round(float((phase + j * lag) / fps), 3) for j in range(int((n - phase) / lag))]
+    energy = float(20 * np.log10(rms.mean() + 1e-9))
+    mood = "energetic" if bpm >= 118 and energy > -24 else "calm" if bpm < 92 or energy < -30 else "neutral"
+    res = {"bpm": int(round(bpm)), "mood": mood, "beats": beats[:600], "energy": round(energy, 1)}
+    meta[key] = res
+    try:
+        cache.write_text(json.dumps(meta), "utf-8")
+    except Exception:
+        pass
+    return res
+
+
+def pick_music(music_dir, mood, n):
+    """أنسب مقطع من المكتبة لمزاج اللقطة"""
+    files = sorted(p for p in Path(music_dir).glob("*") if p.suffix.lower() in (".mp3", ".m4a", ".wav", ".ogg"))
+    if not files:
+        return None, None
+    info = {p: analyze_music(p, Path(music_dir) / ".meta.json") for p in files}
+    match = [p for p in files if info[p]["mood"] == mood] or files
+    p = match[(n - 1) % len(match)]
+    return p, info[p]

@@ -95,7 +95,7 @@ CLIP_SCHEMA = {
             "hook": {"type": "STRING"}, "thumb": {"type": "STRING"}, "highlight": {"type": "STRING"},
             "open_start": {"type": "NUMBER"}, "open_end": {"type": "NUMBER"},
             "keywords": {"type": "ARRAY", "items": {"type": "STRING"}}, "punch": {"type": "STRING"},
-            "alt_titles": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "alt_titles": {"type": "ARRAY", "items": {"type": "STRING"}}, "mood": {"type": "STRING", "enum": ["calm", "neutral", "energetic"]},
             "speaker": {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "role": {"type": "STRING"}}},
             "score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
             "required": ["start", "end", "title", "hook", "thumb", "score"]}},
@@ -130,6 +130,7 @@ def pick_clips(settings, transcript_segments, duration, parts, title, descriptio
 2) لكل لقطة: عنوان جذاب (أقل من 70 حرفاً)، وخطاف (hook) من 3-5 كلمات سؤال مستفز أو معلومة صادمة، ونص غلاف من 2-4 كلمات قوية، وhighlight: الكلمة الأقوى من نص الغلاف (تُكتب كما هي) لتُلوَّن، ودرجة فيروسية 0-100، وسبب الاختيار.
    وopen_start/open_end: أقوى جملة صادمة داخل اللقطة (2-5 ثوانٍ، ليست في بدايتها) لتُعرض كافتتاحية قبل اللقطة.
    وkeywords: من 3 إلى 5 كلمات مفردة مؤثرة منطوقة داخل اللقطة (تُنسخ حرفياً كما في التفريغ) لتُلوَّن في الترجمة.
+   وmood: مزاج اللقطة للموسيقى (calm هادئ، neutral متوسط، energetic حماسي).
    وalt_titles: 3 عناوين بديلة بزوايا مختلفة (سؤال، رقم، صدمة). وspeaker: اسم المتكلم الرئيسي في اللقطة وصفته إن ذُكرا صراحة في الحلقة، وإلا اتركهما فارغين.
    وpunch: عبارة الذروة في اللقطة، من 2 إلى 5 كلمات متتالية منطوقة حرفياً كما في التفريغ، تُعرض بخط ضخم يملأ الشاشة.
 3) SEO للفيديو كاملاً: عنوان قوي، نص غلاف (3 كلمات)، وصف جذاب 2-3 أسطر، و8 هاشتاقات عربية بدون #.
@@ -176,6 +177,7 @@ def validate(raw, segments, duration, parts):
                     "thumb": _clean(r.get("thumb", "")), "highlight": _clean(r.get("highlight", "")),
                     "keywords": [_clean(k) for k in (r.get("keywords") or []) if isinstance(k, str) and _clean(k)][:5],
                     "punch": _clean(r.get("punch", "")) if isinstance(r.get("punch"), str) else "",
+                    "mood": r.get("mood") if r.get("mood") in ("calm", "neutral", "energetic") else "neutral",
                     "alt_titles": [_clean(t)[:100] for t in (r.get("alt_titles") or []) if isinstance(t, str) and _clean(t)][:3],
                     "speaker": {k: _clean((r.get("speaker") or {}).get(k, ""))[:60] for k in ("name", "role")}
                     if isinstance(r.get("speaker"), dict) else {"name": "", "role": ""},
