@@ -95,6 +95,8 @@ CLIP_SCHEMA = {
             "hook": {"type": "STRING"}, "thumb": {"type": "STRING"}, "highlight": {"type": "STRING"},
             "open_start": {"type": "NUMBER"}, "open_end": {"type": "NUMBER"},
             "keywords": {"type": "ARRAY", "items": {"type": "STRING"}}, "punch": {"type": "STRING"},
+            "alt_titles": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "speaker": {"type": "OBJECT", "properties": {"name": {"type": "STRING"}, "role": {"type": "STRING"}}},
             "score": {"type": "INTEGER"}, "reason": {"type": "STRING"}},
             "required": ["start", "end", "title", "hook", "thumb", "score"]}},
     },
@@ -128,6 +130,7 @@ def pick_clips(settings, transcript_segments, duration, parts, title, descriptio
 2) لكل لقطة: عنوان جذاب (أقل من 70 حرفاً)، وخطاف (hook) من 3-5 كلمات سؤال مستفز أو معلومة صادمة، ونص غلاف من 2-4 كلمات قوية، وhighlight: الكلمة الأقوى من نص الغلاف (تُكتب كما هي) لتُلوَّن، ودرجة فيروسية 0-100، وسبب الاختيار.
    وopen_start/open_end: أقوى جملة صادمة داخل اللقطة (2-5 ثوانٍ، ليست في بدايتها) لتُعرض كافتتاحية قبل اللقطة.
    وkeywords: من 3 إلى 5 كلمات مفردة مؤثرة منطوقة داخل اللقطة (تُنسخ حرفياً كما في التفريغ) لتُلوَّن في الترجمة.
+   وalt_titles: 3 عناوين بديلة بزوايا مختلفة (سؤال، رقم، صدمة). وspeaker: اسم المتكلم الرئيسي في اللقطة وصفته إن ذُكرا صراحة في الحلقة، وإلا اتركهما فارغين.
    وpunch: عبارة الذروة في اللقطة، من 2 إلى 5 كلمات متتالية منطوقة حرفياً كما في التفريغ، تُعرض بخط ضخم يملأ الشاشة.
 3) SEO للفيديو كاملاً: عنوان قوي، نص غلاف (3 كلمات)، وصف جذاب 2-3 أسطر، و8 هاشتاقات عربية بدون #.
 ممنوع الإيموجي والرموز مثل ** في كل النصوص. الأزمنة بالثواني وضمن 0 إلى {duration:.0f}."""
@@ -173,6 +176,9 @@ def validate(raw, segments, duration, parts):
                     "thumb": _clean(r.get("thumb", "")), "highlight": _clean(r.get("highlight", "")),
                     "keywords": [_clean(k) for k in (r.get("keywords") or []) if isinstance(k, str) and _clean(k)][:5],
                     "punch": _clean(r.get("punch", "")) if isinstance(r.get("punch"), str) else "",
+                    "alt_titles": [_clean(t)[:100] for t in (r.get("alt_titles") or []) if isinstance(t, str) and _clean(t)][:3],
+                    "speaker": {k: _clean((r.get("speaker") or {}).get(k, ""))[:60] for k in ("name", "role")}
+                    if isinstance(r.get("speaker"), dict) else {"name": "", "role": ""},
                     "score": max(0, min(100, int(r.get("score") or 0))),
                     "reason": _clean(r.get("reason", ""))})
         if len(out) == parts:
@@ -238,3 +244,59 @@ def free_slot(segments, duration, taken):
         return None
     return {"s": round(s0, 2), "e": round(e0, 2), "open": None, "title": "", "hook": "", "thumb": "", "highlight": "",
             "keywords": [], "punch": "", "score": 50, "reason": ""}
+
+
+LANGS = {"en": "English", "fr": "French", "tr": "Turkish"}
+
+
+def translate_lines(settings, lines, lang="en"):
+    """ترجمة سطور الترجمة بنفس الترتيب والعدد"""
+    if not lines:
+        return []
+    prompt = f"""Translate each Arabic subtitle line into natural, concise {LANGS.get(lang, "English")} for on-screen captions.
+Return exactly {len(lines)} items in the same order. No emojis, no quotes.
+""" + "\n".join(f"{i + 1}. {t}" for i, t in enumerate(lines))
+    data = ask_json(settings, prompt, {"type": "OBJECT", "properties": {"lines": {"type": "ARRAY", "items": {"type": "STRING"}}},
+                                       "required": ["lines"]}, 0.3)
+    out = [_clean(x)[:90] for x in (data.get("lines") or [])]
+    return out if len(out) == len(lines) else []
+
+
+PACK_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "clips": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "n": {"type": "INTEGER"},
+            "youtube_title": {"type": "STRING"}, "youtube_description": {"type": "STRING"},
+            "youtube_tags": {"type": "ARRAY", "items": {"type": "STRING"}},
+            "tiktok_caption": {"type": "STRING"}, "instagram_caption": {"type": "STRING"},
+            "hashtags": {"type": "ARRAY", "items": {"type": "STRING"}}}, "required": ["n"]}},
+        "chapters": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "t": {"type": "NUMBER"}, "title": {"type": "STRING"}}, "required": ["t", "title"]}},
+    },
+    "required": ["clips", "chapters"],
+}
+
+
+def publish_pack(settings, clips, seo, segments, title, duration):
+    """نصوص نشر لكل منصة لكل لقطة + فصول زمنية للحلقة كاملة"""
+    lst = "\n".join(f"{c['n']}) {c['title']} · {c.get('hook', '')} · [{c['s']:.0f}-{c['e']:.0f}]" for c in clips)
+    prompt = f"""أنت مسؤول نشر محترف لقناة عربية. الحلقة: {title}
+وصفها: {seo.get('description', '')}
+اللقطات:
+{lst}
+
+التفريغ الزمني للحلقة:
+{_compact(segments, 120_000)}
+
+المطلوب:
+1) لكل لقطة n: youtube_title (أقل من 70 حرفاً)، youtube_description (3-4 أسطر مع دعوة للاشتراك)، youtube_tags (10 كلمات)،
+   tiktok_caption (سطر جذاب قصير)، instagram_caption (2-3 أسطر)، hashtags (8 بدون #).
+2) chapters: فصول للحلقة الكاملة (5-12 فصلاً) بأزمنة بالثواني تبدأ من 0 وضمن {duration:.0f}، بعناوين قصيرة واضحة.
+ممنوع الإيموجي وعلامات التنسيق."""
+    data = ask_json(settings, prompt, PACK_SCHEMA, 0.6)
+    chapters = sorted({round(float(c["t"])): _clean(c["title"])[:80] for c in data.get("chapters") or []
+                       if 0 <= float(c.get("t", -1)) < duration and _clean(c.get("title", ""))}.items())
+    if chapters and chapters[0][0] != 0:
+        chapters.insert(0, (0, "المقدمة"))
+    return {int(c.get("n", 0)): c for c in data.get("clips") or []}, chapters

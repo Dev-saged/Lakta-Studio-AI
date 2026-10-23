@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.13.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.14.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -18,7 +18,7 @@ CONFIG = {
     },
     "whisper_batch": 16,
     "clip": {"min": 25, "max": 75, "target": "40-60", "max_parts": 3},
-    "limits": {"upload_mb": 4096, "font_mb": 20, "image_mb": 10, "music_mb": 50, "json_kb": 512},
+    "limits": {"upload_mb": 4096, "bumper_mb": 200, "font_mb": 20, "image_mb": 10, "music_mb": 50, "json_kb": 512},
     "fonts": {"default": "LaktaAlexandria-ExtraBold.ttf"},
     "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
     "trash": {"days": 7},
@@ -57,9 +57,10 @@ CONFIG = {
         "gemini_key": "", "text_model": "", "tts_model": "",
         "telegram_token": "", "telegram_chat": "", "telegram_zip": True,
         "whisper": "balanced", "resolution": 1080, "speed": 1.0, "quality": "balanced", "codec": "h264", "telegram_light": True,
-        "voice_clean": True, "grade": "none", "grain": False, "auto_color": True, "stabilize": False, "lowres_fix": True,
+        "voice_clean": True, "grade": "none", "grain": False, "auto_color": True, "stabilize": False, "lowres_fix": True, "publish_pack": True,
         "brand": {
-            "caption_style": "classic", "caption_anim": "pop", "words": 4, "punch": True, "safe_zone": True, "title_card": False, "font": "LaktaAlexandria-ExtraBold.ttf",
+            "caption_style": "classic", "caption_anim": "pop", "words": 4, "punch": True, "safe_zone": True, "title_card": False,
+            "lower_third": True, "bilingual": False, "trans_lang": "en", "intro_video": "", "outro_video": "", "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",
             "frame_short": "", "frame_wide": "",
             "template": {
@@ -69,7 +70,7 @@ CONFIG = {
             },
         },
         "job": {
-            "parts": 1, "formats": {"short": True, "wide": True}, "face": True, "hook": False, "short_fill": False, "review": False,
+            "parts": 1, "formats": {"short": True, "wide": True, "square": False, "portrait": False}, "face": True, "hook": False, "short_fill": False, "review": False,
             "edit": {"silence": True, "zoom": True, "cold_open": True, "sfx": True, "smooth": True, "scenes": True},
             "layout": "track",
             "audio": {"mode": "original", "engine": "edge", "text": "same", "dialect": "original",

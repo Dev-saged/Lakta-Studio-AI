@@ -210,6 +210,16 @@ def _smooth(samples, src_w, crop_w, center, step, cuts=None):
     return keys[:60]
 
 
+def rescale(crop, src_w, src_h, ratio):
+    """قص بنسبة أخرى (1:1 أو 4:5) حول نفس مواضع قص الشورتس"""
+    w2 = min(src_w, int(src_h * ratio) // 2 * 2)
+    if not crop or isinstance(crop, dict):
+        return [(0.0, (src_w - w2) // 2 // 2 * 2)], w2
+    keys, cw = crop
+    clamp = lambda x: int(max(0, min(src_w - w2, x))) // 2 * 2
+    return [(t, clamp(x + cw / 2 - w2 / 2)) for t, x in keys], w2
+
+
 def expr(keys):
     """تعبير ffmpeg لموضع القص بحسب الزمن (لقطات ثابتة تنتقل بين المتكلمين)"""
     if len(keys) == 1:
