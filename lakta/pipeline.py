@@ -148,6 +148,11 @@ class Pipeline:
                     item.update(edl=edl, out_dur=edit.total(edl["abs"]) / speed, words=edit.remap(tr["words"], edl["abs"], speed))
                     cut = dur_src - edit.total(edl["abs"]) + (edl["abs"][0][1] - edl["abs"][0][0] if edl["cold"] else 0)
                     log(f"مونتاج اللقطة {c['n']}: {len(edl['segs'])} مقطعاً · حُذف {cut:.1f}ث" + (" · افتتاحية بالخطاف" if edl["cold"] else ""))
+            item["music"], info = _music_for(env, a, c, log)
+            if item.get("edl") and info and info.get("beats"):
+                item["edl"] = edit.snap_beats(item["edl"], info["beats"], speed)
+                if item["edl"].get("beats"):
+                    log(f"اللقطة {c['n']}: {item['edl']['beats']} تبديلات زوم على إيقاع الموسيقى ({info['bpm']} BPM)")
             plan.append(item)
         if a["mode"] != "original":
             job.step("voice")
@@ -179,7 +184,6 @@ class Pipeline:
         fmts = [f for f in FORMAT_LABEL if opts["formats"].get(f)] or ["short"]
         wm = env.assets / brand["watermark"] if brand.get("watermark") else None
         wm = wm if wm and wm.exists() else None
-        music = env.music / a["music"] if a.get("music") else None
         res = int(st.get("resolution") or 1080)
         total = len(plan) * len(fmts)
         done = 0
@@ -187,7 +191,7 @@ class Pipeline:
             c = p["c"]
             n = c["n"]
             mix = audio.mix(a["mode"], work / f"mix_{i}.wav", p["out_dur"], orig=p["orig"], voice=p.get("voice"),
-                            bg=p.get("bg"), music=music if music and music.exists() else None, cancel=cancel,
+                            bg=p.get("bg"), music=p.get("music"), cancel=cancel,
                             clean=st.get("voice_clean") is not False)
             at = captions.find_phrase(p["words"], c.get("punch")) if brand.get("punch", True) else None
             p["punch"] = (at[0], at[1], c["punch"]) if at else None
@@ -306,6 +310,24 @@ def _kw_times(words, c, keywords, gap=2.5):
     return out[:5]
 
 
+def _music_for(env, a, c, log):
+    """موسيقى اللقطة: المختارة، أو الأنسب لمزاجها من المكتبة عند «تلقائي»"""
+    name = a.get("music")
+    if not name:
+        return None, None
+    try:
+        if name == "auto":
+            path, info = audio.pick_music(env.music, c.get("mood") or "neutral", c["n"])
+            if path:
+                log(f"اللقطة {c['n']}: موسيقى «{path.stem}» · {audio.MOODS[info['mood']]}")
+            return path, info
+        path = env.music / Path(name).name
+        return (path, audio.analyze_music(path, env.music / ".meta.json")) if path.exists() else (None, None)
+    except Exception as e:
+        log(f"تعذّر تحليل الموسيقى ({str(e)[:100]})")
+        return (env.music / Path(name).name if name != "auto" else None), None
+
+
 def _translate(st, words, lang, log):
     """سطور ترجمة ثانية: جمل قصيرة بحدود الوقفات"""
     groups = captions.chunks(words, 7, 0.5)
@@ -345,7 +367,8 @@ def _publish(st, has_key, out, clips, seo, tr, src, meta, log):
 def _extras(brand, p, c, n, parts, fmt, crop):
     """عبارة الذروة، بطاقتا العنوان والختام، وتخطيط الشاشة المقسومة"""
     ex = {"punch": p.get("punch"), "layout": "split" if fmt == "short" and isinstance(crop, dict) else None,
-          "trans": p.get("trans"), "speaker": c.get("speaker") if brand.get("lower_third", True) else None}
+          "trans": p.get("trans"), "speaker": c.get("speaker") if brand.get("lower_third", True) else None,
+          "marks": captions.ordinals(p.get("words") or []) if brand.get("motion_gfx", True) else []}
     if brand.get("title_card"):
         tpl = brand.get("template") or {}
         ex.update(title=c["title"], part=f"الجزء {thumbs.part_word(n)}" if parts > 1 else "")

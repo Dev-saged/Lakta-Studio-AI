@@ -13,7 +13,7 @@
 <p align="center"><b>مصنع لقطات قصيرة بالذكاء الاصطناعي.</b> يحوّل الحلقات الطويلة والبودكاست إلى Shorts و Reels ومقاطع يوتيوب عريضة جاهزة للنشر، بواجهة عربية تعمل من المتصفح على Kaggle و Colab و VPS.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-34.14.0-2B4BD8?style=for-the-badge" alt="version">
+  <img src="https://img.shields.io/badge/version-34.15.0-2B4BD8?style=for-the-badge" alt="version">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FFmpeg-engine-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg">
   <img src="https://img.shields.io/badge/Gemini-director-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Gemini">
@@ -94,6 +94,9 @@
 
 #### <img src="docs/media/icons/scissors-edit.svg" width="20" align="center"> أنت المخرج
 مراجعة قبل الإخراج: تعدّل حدود كل لقطة على خط زمني مع معاينة، وتصحّح العنوان والخطاف وأي كلمة، أو تطلب لقطة بديلة. وإعادة إخراج فورية بأي إعدادات جديدة دون تنزيل أو تفريغ من جديد.
+
+#### <img src="docs/media/icons/rocket.svg" width="20" align="center"> يعمل وحده
+مراقبة قنوات يوتيوب وإنتاج كل حلقة جديدة تلقائياً، وهويات محفوظة لكل قناة أو عميل، ولوحة إحصاءات، وموسيقى تُختار حسب مزاج اللقطة مع تبديلات زوم على الإيقاع، وشارات أرقام متحركة عند التعداد.
 
 #### <img src="docs/media/icons/send.svg" width="20" align="center"> تسليم مرتب
 ملف مضغوط باسم المشروع، فيه مجلد لكل جزء بأسماء عربية، مع ملف نشر جاهز ليوتيوب وتيك توك وإنستغرام وفصول زمنية للحلقة. يُرسل إلى تيليجرام، ويُقسَّم حسب الجزء إن تجاوز 50MB، مع نسخة خفيفة للفيديو الكبير.

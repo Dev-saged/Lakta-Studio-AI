@@ -1,6 +1,6 @@
 # إعدادات المنتج — تعديل هذا الملف فقط عند البيع لعميل جديد
 CONFIG = {
-    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.14.0"},
+    "app": {"name": "لقطة", "full_name": "استوديو لقطة", "version": "34.15.0"},
     "repo": {"owner": "Dev-saged", "name": "Lakta-Studio-AI", "branch": "main"},
     "server": {"port": 7860, "tunnel": True},
     "models": {
@@ -23,6 +23,7 @@ CONFIG = {
     "template": {"cta_default": "تابع للمزيد", "cta_seconds": 3},
     "trash": {"days": 7},
     "cache": {"sources": 5},
+    "watch": {"minutes": 30},
     "grades": {
         "none": {"label": "بدون", "vf": ""},
         "cinema": {"label": "سينمائي", "vf": "colorbalance=rs=-0.04:bs=0.06:rh=0.06:bh=-0.05,curves=preset=medium_contrast,eq=saturation=1.04"},
@@ -60,7 +61,7 @@ CONFIG = {
         "voice_clean": True, "grade": "none", "grain": False, "auto_color": True, "stabilize": False, "lowres_fix": True, "publish_pack": True,
         "brand": {
             "caption_style": "classic", "caption_anim": "pop", "words": 4, "punch": True, "safe_zone": True, "title_card": False,
-            "lower_third": True, "bilingual": False, "trans_lang": "en", "intro_video": "", "outro_video": "", "font": "LaktaAlexandria-ExtraBold.ttf",
+            "lower_third": True, "motion_gfx": True, "bilingual": False, "trans_lang": "en", "intro_video": "", "outro_video": "", "font": "LaktaAlexandria-ExtraBold.ttf",
             "frame_on": True, "frame_color": "#E8402A", "watermark": "", "watermark_pos": "tr",
             "frame_short": "", "frame_wide": "",
             "template": {

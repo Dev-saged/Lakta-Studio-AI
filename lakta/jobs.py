@@ -218,12 +218,14 @@ class Job:
     def step(self, key, note=""):
         if self.cancelled():
             raise Cancelled()
+        now = time.time()
         with self.store.lock:
             for s in self.data["steps"]:
                 if s["key"] == self.current and s["state"] == "now":
                     s["state"] = "done"
+                    s["sec"] = round(now - s.get("t0", now), 1)
                 if s["key"] == key:
-                    s["state"], s["note"] = "now", note
+                    s["state"], s["note"], s["t0"] = "now", note, now
         self.current = key
         self._pct(0)
 
@@ -267,6 +269,7 @@ class Job:
             for s in self.data["steps"]:
                 if s["state"] == "now":
                     s["state"] = "done"
+                    s["sec"] = round(time.time() - s.get("t0", time.time()), 1)
         self.finish("done", None)
 
     def finish(self, status, err):

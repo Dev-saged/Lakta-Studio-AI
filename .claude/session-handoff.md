@@ -1,13 +1,13 @@
 # session-handoff
 
 ## Where we stopped
-- Stacked branches: feature/packaging (#13) → feature/look-sound (#14) → feature/motion (#15) → docs/readme (#16)
-  → perf/fast-transcribe (34.9.0) → feature/smart-cut (34.10.0) → feature/captions-pro (34.11.0) → feature/image-quality (34.12.0)
+- Stacked PRs to merge in order: #13 → #14 → #15 → #16 → #17 → #18 → #19 → #20 → studio-control (34.13.0) → studio-pro (34.14.0) → studio-auto (34.15.0)
 
 ## Next step
-- Merge PRs in order, then a real Kaggle run: log line "التفريغ: …×" for speed, split/active layouts on a two-person podcast, punch phrase with Gemini key
+- Real Kaggle run: review editor with a YouTube source (mkv preview may not play in Safari), Kaggle backup with KAGGLE_USERNAME/KAGGLE_KEY, relay Worker deploy, channel watch with @handle URL, publish pack and bilingual with a Gemini key
 
 ## Decisions made this session
-- Batched whisper on GPU (16) and CPU (8); sequential path kept as fallback
-- Smooth zoom needs ffmpeg 5+ (scale eval=frame with t); capability-checked, falls back to hard zoom
-- Layout default stays "track"; title cards default off; safe zone, punch, auto color, low-res fix default on; stabilize off
+- Persistence: Kaggle Dataset (private) via kaggle CLI; secrets stripped; uploads/sources/cookies excluded; Colab relies on Drive
+- Fixed link: Cloudflare Worker + KV redirect (not proxy) so large uploads skip Worker limits
+- Watch starts from the latest existing video (no backfill)
+- New defaults: lower third, motion badges, publish pack on; bilingual, title cards, review off
