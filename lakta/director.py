@@ -203,3 +203,38 @@ def rewrite(settings, text, mode, dialect, seconds):
 {text}"""
     data = ask_json(settings, prompt, {"type": "OBJECT", "properties": {"text": {"type": "STRING"}}, "required": ["text"]}, 0.6)
     return _clean(data.get("text") or text)
+
+
+def alt_clip(settings, segments, duration, taken, title):
+    """لقطة بديلة لا تتداخل مع اللقطات الحالية"""
+    c = CONFIG["clip"]
+    busy = "، ".join(f"{a:.0f}-{b:.0f}" for a, b in taken) or "لا شيء"
+    prompt = f"""أنت مخرج محتوى قصير محترف. عنوان الفيديو: {title}
+التفريغ الزمني:
+{_compact(segments)}
+
+اختر لقطة واحدة جديدة قوية {c['target']} ثانية لا تتداخل أبداً مع هذه الفترات المستخدمة (بالثواني): {busy}.
+املأ نفس الحقول: عنوان، hook، thumb، highlight، keywords، punch، open_start/open_end، score، reason.
+الأزمنة ضمن 0 إلى {duration:.0f}. ممنوع الإيموجي."""
+    data = ask_json(settings, prompt, CLIP_SCHEMA)
+    free = lambda s, e: all(e <= a or s >= b for a, b in taken)
+    for r in validate(data.get("clips") or [], segments, duration, 3):
+        if free(r["s"], r["e"]):
+            return r
+    return None
+
+
+def free_slot(segments, duration, taken):
+    """بديل بدون Gemini: أوسع فراغ غير مستخدم، بحدود جمل كاملة داخله"""
+    edges = sorted([(0.0, 0.0)] + [tuple(t) for t in taken] + [(duration, duration)])
+    size, a, b = max((edges[i + 1][0] - edges[i][1], edges[i][1], edges[i + 1][0]) for i in range(len(edges) - 1))
+    if size < 12:
+        return None
+    mid, half = (a + b) / 2, min(25.0, size * 0.48)
+    s0 = min([x["s"] for x in segments if a <= x["s"] <= mid - half + 2] or [mid - half], key=lambda v: abs(v - (mid - half)))
+    e0 = min([x["e"] for x in segments if mid + half - 2 <= x["e"] <= b] or [mid + half], key=lambda v: abs(v - (mid + half)))
+    s0, e0 = max(a, s0), min(b, e0)
+    if e0 - s0 < 8:
+        return None
+    return {"s": round(s0, 2), "e": round(e0, 2), "open": None, "title": "", "hook": "", "thumb": "", "highlight": "",
+            "keywords": [], "punch": "", "score": 50, "reason": ""}

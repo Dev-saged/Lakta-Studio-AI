@@ -13,7 +13,7 @@
 <p align="center"><b>مصنع لقطات قصيرة بالذكاء الاصطناعي.</b> يحوّل الحلقات الطويلة والبودكاست إلى Shorts و Reels ومقاطع يوتيوب عريضة جاهزة للنشر، بواجهة عربية تعمل من المتصفح على Kaggle و Colab و VPS.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-34.12.0-2B4BD8?style=for-the-badge" alt="version">
+  <img src="https://img.shields.io/badge/version-34.13.0-2B4BD8?style=for-the-badge" alt="version">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/FFmpeg-engine-007808?style=for-the-badge&logo=ffmpeg&logoColor=white" alt="FFmpeg">
   <img src="https://img.shields.io/badge/Gemini-director-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white" alt="Gemini">
@@ -92,6 +92,9 @@
 #### <img src="docs/media/icons/film.svg" width="20" align="center"> جودة إخراج عالية
 محرك FFmpeg مع NVENC على GPU. ثلاثة ملفات جودة، وترميز H.264 أو HEVC داخل MP4، وتلوين سينمائي، وضبط إضاءة تلقائي، وتثبيت للصورة، وتحسين للمصادر الضعيفة.
 
+#### <img src="docs/media/icons/scissors-edit.svg" width="20" align="center"> أنت المخرج
+مراجعة قبل الإخراج: تعدّل حدود كل لقطة على خط زمني مع معاينة، وتصحّح العنوان والخطاف وأي كلمة، أو تطلب لقطة بديلة. وإعادة إخراج فورية بأي إعدادات جديدة دون تنزيل أو تفريغ من جديد.
+
 #### <img src="docs/media/icons/send.svg" width="20" align="center"> تسليم مرتب
 ملف مضغوط باسم المشروع، فيه مجلد لكل جزء بأسماء عربية. يُرسل إلى تيليجرام، ويُقسَّم حسب الجزء إن تجاوز 50MB، مع نسخة خفيفة للفيديو الكبير.
 
@@ -157,6 +160,14 @@ python run.py --no-tunnel --port 7860      # أو على المنفذ مباشر
 | `TELEGRAM_TOKEN` · `TELEGRAM_CHAT_ID` | إرسال الملف المضغوط إلى تيليجرام |
 | `LAKTA_PASSWORD` | رمز دخول ثابت بدل الرمز المتغير في كل تشغيل |
 | `YOUTUBE_COOKIES` | تجاوز تحقق يوتيوب «Sign in to confirm you're not a bot» |
+| `KAGGLE_USERNAME` · `KAGGLE_KEY` | حفظ دائم: نسخة من المكتبة والإعدادات في Kaggle Dataset خاص تُستعاد كل جلسة |
+| `LAKTA_RELAY_URL` · `LAKTA_RELAY_TOKEN` | رابط ثابت لا يتغير بين التشغيلات (انظر الخطوات أدناه) |
+
+### رابط ثابت (Cloudflare مجاناً)
+1. من لوحة Cloudflare: Workers ← إنشاء Worker، والصق محتوى `deploy/relay-worker.js`.
+2. أنشئ KV Namespace واربطه بالـ Worker باسم `LAKTA`، وأضف متغيراً سرياً باسم `TOKEN` بقيمة عشوائية طويلة.
+3. أضف في Secrets: `LAKTA_RELAY_URL` (رابط الـ Worker) و `LAKTA_RELAY_TOKEN` (نفس قيمة `TOKEN`).
+4. مع كل تشغيل يُحدَّث الرابط تلقائياً، وتفتح الاستوديو دائماً من نفس العنوان، ويصلح لتغليفه كتطبيق أندرويد.
 
 ## <img src="docs/media/icons/shield.svg" width="22" align="center"> الأمان
 - رابط الاستوديو محمي برمز دخول من 8 أرقام يظهر في خلية التشغيل، أو برمزك الثابت `LAKTA_PASSWORD`. يُقفل الدخول مؤقتاً بعد 10 محاولات خاطئة.

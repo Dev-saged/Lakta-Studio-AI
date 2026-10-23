@@ -4,14 +4,16 @@ import mimetypes
 import re
 import secrets
 import shutil
+import threading
 import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import director, fonts, ingest, templates, voice
+from . import backup, director, fonts, ingest, templates, transcribe, voice
 from .env import ROOT, ffprobe
+from .jobs import STEP_LABELS
 from .pipeline import deliver_again, steps_for
 
 WEB = ROOT / "web"
@@ -49,6 +51,100 @@ class App:
         self.key = own or kf.read_text().strip()
         self.token = norm_key(self.key)
         self.fails = {}
+        self.fixed_url = None
+
+    # ===== المشروع المحفوظ: مراجعة وإعادة إخراج =====
+    def load_project(self, jid):
+        p = self.env.outputs / Path(jid).name / "project.json"
+        if not p.exists():
+            raise ValueError("لا يوجد مشروع محفوظ لهذه المهمة")
+        return json.loads(p.read_text("utf-8"))
+
+    def can_resume(self, jid):
+        try:
+            return Path(self.load_project(jid)["src"]["path"]).exists()
+        except Exception:
+            return False
+
+    def project(self, jid):
+        pj = self.load_project(jid)
+        words = pj["tr"]["words"]
+        dur = pj["meta"]["duration"]
+        out = []
+        for c in pj["clips"]:
+            a, b = max(0.0, c["s"] - 20), min(dur, c["e"] + 20)
+            out.append({"n": c["n"], "s": c["s"], "e": c["e"], "title": c.get("title", ""), "hook": c.get("hook", ""),
+                        "thumb": c.get("thumb", ""), "score": c.get("score", 0), "win": [a, b],
+                        "words": [[i, w["w"], round(w["s"], 2), round(w["e"], 2)] for i, w in enumerate(words) if a <= w["s"] < b]})
+        return {"duration": dur, "title": pj["src"]["title"], "clips": out, "source": Path(pj["src"]["path"]).exists()}
+
+    def project_action(self, jid, act, body):
+        job = self.store.get(jid)
+        if not job:
+            raise ValueError("غير موجود")
+        if job["status"] in ("running", "queued"):
+            raise ValueError("المهمة تعمل الآن · انتظر انتهاءها")
+        pj = self.load_project(jid)
+        path = self.env.outputs / jid / "project.json"
+        dur = pj["meta"]["duration"]
+        if act == "alt":
+            n = int(body.get("n") or 0)
+            cur = next((c for c in pj["clips"] if c["n"] == n), None)
+            if not cur:
+                raise ValueError("لقطة غير موجودة")
+            taken = [(c["s"], c["e"]) for c in pj["clips"]]
+            segs = pj["tr"]["segments"] if pj["tr"].get("source") == "youtube" else transcribe.regroup(pj["tr"]["words"])
+            new = None
+            if self.settings.get("gemini_key"):
+                try:
+                    new = director.alt_clip(self.settings, segs, dur, taken, pj["src"]["title"])
+                except Exception as e:
+                    print("alt_clip:", director.friendly(e))
+            new = new or director.free_slot(segs, dur, taken)
+            if not new:
+                raise ValueError("لا توجد مساحة لِلقطة بديلة في هذا الفيديو")
+            seo = pj["seo"]
+            new.update(n=n, title=new["title"] or seo["title"], hook=new["hook"] or seo["thumb"], thumb=new["thumb"] or seo["thumb"], files={})
+            pj["clips"] = [new if c["n"] == n else c for c in pj["clips"]]
+            path.write_text(json.dumps(pj, ensure_ascii=False), "utf-8")
+            return self.project(jid)
+        if act == "produce":
+            # تعديلات المراجعة: الحدود والنصوص وتصحيح الكلمات
+            edits = {int(c.get("n", 0)): c for c in (body.get("clips") or []) if isinstance(c, dict)}
+            for c in pj["clips"]:
+                e = edits.get(c["n"])
+                if not e:
+                    continue
+                s0, e0 = float(e.get("s", c["s"])), float(e.get("e", c["e"]))
+                if not (0 <= s0 < e0 <= dur + 0.01) or not 5 <= e0 - s0 <= 180:
+                    raise ValueError(f"حدود اللقطة {c['n']} غير صالحة (بين 5 و180 ثانية)")
+                c["s"], c["e"] = round(s0, 2), round(e0, 2)
+                if c.get("open") and not (c["s"] <= c["open"][0] < c["open"][1] <= c["e"]):
+                    c["open"] = None
+                for k in ("title", "hook", "thumb"):
+                    if isinstance(e.get(k), str):
+                        c[k] = re.sub(r"\s+", " ", e[k]).strip()[:120] or c[k]
+            words = pj["tr"]["words"]
+            for i, w in (body.get("fixes") or {}).items():
+                i = int(i)
+                if 0 <= i < len(words) and isinstance(w, str):
+                    w = re.sub(r"\s+", " ", w).strip()[:40]
+                    words[i]["w"] = w or words[i]["w"]
+            path.write_text(json.dumps(pj, ensure_ascii=False), "utf-8")
+        elif act != "rerender":
+            raise ValueError("إجراء غير معروف")
+        if not Path(pj["src"]["path"]).exists():
+            raise ValueError("الفيديو المصدر لم يعد محفوظاً · أعد الإنتاج من البداية")
+        o = {**job["opts"]}
+        for k in ("formats", "layout", "hook", "face", "short_fill", "edit"):
+            if k in body and isinstance(body[k], type(o.get(k, body[k]))):
+                o[k] = body[k]
+        o["review"] = False
+        steps = [{"key": k, "label": STEP_LABELS[k], "state": "done" if k in ("download", "transcribe", "direct") else "todo", "note": ""}
+                 for k in steps_for(o)]
+        self.store.update(jid, status="queued", phase="produce", error=None, pct=0, finished=None, opts=o, steps=steps, zip=None)
+        self.worker.kick()
+        return {"ids": [jid], "msg": "أُرسلت للإخراج"}
 
     # ===== الحالة =====
     def state(self):
@@ -58,7 +154,7 @@ class App:
                 "google_fonts": fonts.GOOGLE_ARABIC,
                 "music": sorted(p.name for p in self.env.music.glob("*") if p.suffix.lower() in UPLOADS["music"][0]),
                 "cookies": "file" if (self.env.assets / "youtube_cookies.txt").exists() else ("secret" if ingest.cookies_path(self.env) else ""),
-                "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "clip": CONFIG["clip"], "trash_days": CONFIG["trash"]["days"],
+                "voices": voice.voices(), "defaults": CONFIG["defaults"]["job"], "backup": backup.info(self.env), "fixed_url": self.fixed_url, "clip": CONFIG["clip"], "trash_days": CONFIG["trash"]["days"],
                 "version": ver, "jobs": jobs}
 
     def create_jobs(self, body):
@@ -76,7 +172,7 @@ class App:
         opts = {"parts": max(1, min(CONFIG["clip"]["max_parts"], int(body.get("parts") or 1))),
                 "formats": {"short": bool(fm.get("short", True)), "wide": bool(fm.get("wide", True))},
                 "face": bool(body.get("face", True)), "hook": bool(body.get("hook", False)), "audio": a,
-                "short_fill": bool(body.get("short_fill", False)),
+                "short_fill": bool(body.get("short_fill", False)), "review": bool(body.get("review", False)),
                 "layout": body.get("layout") if body.get("layout") in ("track", "active", "split") else "track",
                 "edit": {k: bool((body.get("edit") or {}).get(k, v)) for k, v in d["edit"].items()}}
         if a["mode"] != "original" and (a["engine"] == "gemini" or a["text"] != "same" or a["dialect"] != "original") \
@@ -251,6 +347,13 @@ def handler(app):
                     return self._json({"version": ver, "jobs": jobs})
                 if path == "/api/events":
                     return self._events()
+                m = re.fullmatch(r"/api/jobs/([\w\-]+)/project", path)
+                if m:
+                    return self._json(app.project(m.group(1)))
+                m = re.fullmatch(r"/api/jobs/([\w\-]+)/source", path)
+                if m:
+                    pj = app.load_project(m.group(1))
+                    return self._file(pj["src"]["path"], "private, max-age=600")
                 m = re.fullmatch(r"/api/jobs/([\w\-]+)(/transcript)?", path)
                 if m:
                     job = app.store.get(m.group(1))
@@ -323,8 +426,17 @@ def handler(app):
                 body = self._body()
                 if path == "/api/jobs":
                     return self._json({"ids": app.create_jobs(body)})
+                if path == "/api/backup":
+                    if backup.mode(app.env) != "kaggle":
+                        raise ValueError("النسخ الاحتياطي يعمل على Kaggle مع KAGGLE_USERNAME و KAGGLE_KEY في Secrets")
+                    if not backup.state["busy"]:
+                        threading.Thread(target=backup.snapshot, args=(app.env,), daemon=True).start()
+                    return self._json({"msg": "بدأ النسخ الاحتياطي"})
                 if path == "/api/trash/empty":
                     return self._json({"count": app.store.purge_expired(0)})
+                m = re.fullmatch(r"/api/jobs/([\w\-]+)/(produce|rerender|alt)", path)
+                if m:
+                    return self._json(app.project_action(m.group(1), m.group(2), body))
                 m = re.fullmatch(r"/api/jobs/([\w\-]+)/(cancel|retry|delete|restore|purge|telegram)", path)
                 if m:
                     return self._json(self._job_action(*m.groups()))
@@ -440,6 +552,10 @@ def handler(app):
                     raise ValueError("المهمة ما زالت تتوقف · حاول بعد ثوانٍ")
                 return {"msg": "حُذفت نهائياً"}
             elif act == "retry":
+                if job["status"] in ("failed", "canceled") and app.can_resume(jid):
+                    # استئناف من الإخراج: المصدر والتفريغ محفوظان
+                    app.project_action(jid, "rerender", {})
+                    return {"ids": [jid], "msg": "استُؤنفت من مرحلة الإخراج"}
                 o = job["opts"]
                 new = app.store.add(job["label"], o, steps_for(o))
                 app.worker.kick()

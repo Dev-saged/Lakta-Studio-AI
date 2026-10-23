@@ -342,6 +342,20 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 @starting-style{.pop:popover-open::backdrop{opacity:0}}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto var(--s3)}
 .pop-in{display:grid;gap:var(--s4)}
+.pop.rv{width:min(100%,560px);max-height:94dvh}
+.rv video{width:100%;max-height:34dvh;border-radius:var(--r);background:oklch(.12 .02 262);display:block}
+.rv-range{direction:ltr;position:relative;height:56px;border-radius:var(--r);background:var(--surface-2);overflow:hidden;touch-action:none}
+.rv-range .sel{position:absolute;inset-block:0;background:var(--mark);border-inline:3px solid var(--accent)}
+.rv-range input{position:absolute;inset:0;width:100%;height:100%;margin:0;appearance:none;background:none;pointer-events:none}
+.rv-range input::-webkit-slider-thumb{appearance:none;pointer-events:auto;width:28px;height:56px;border-radius:8px;background:var(--accent);cursor:ew-resize}
+.rv-range input::-moz-range-thumb{pointer-events:auto;width:28px;height:56px;border:0;border-radius:8px;background:var(--accent);cursor:ew-resize}
+.rv-times{display:flex;justify-content:space-between;font:600 var(--t-xs)/1 var(--f-mono);color:var(--muted);direction:ltr}
+.rv-words{display:flex;flex-wrap:wrap;gap:6px;max-height:30dvh;overflow:auto;padding:2px}
+.rv-words button{min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:500 var(--t-s)/1.2 var(--f-body)}
+.rv-words button.out{opacity:.38}
+.rv-words button.fixed{border-color:var(--accent);background:var(--mark)}
+.rv-words input{min-height:44px;width:8em;border-radius:10px;border:1.5px solid var(--accent);padding:6px 8px;font:inherit}
+.rv-acts{position:sticky;bottom:0;background:var(--surface);padding-block:var(--s3);display:grid;grid-template-columns:1fr 1.4fr;gap:var(--s3)}
 .pop h2{margin:0;font:800 var(--t-l)/1.3 var(--f-display)}
 .modes{display:grid;gap:var(--s2)}
 .mode{display:grid;grid-template-columns:auto 1fr;gap:2px var(--s3);align-items:center;min-height:56px;padding:var(--s2) var(--s3);border:1px solid var(--line);border-radius:var(--r);background:transparent;cursor:pointer;text-align:start;transition:border-color .2s,background .2s}
@@ -496,6 +510,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" class="chip" data-opt="wide">عريض ١٦:٩</button>
           <button type="button" class="chip" data-opt="face"><svg class="ic"><use href="#i-face"/></svg>تتبع الوجه</button>
           <button type="button" class="chip" data-opt="hook"><svg class="ic"><use href="#i-hook"/></svg>الخطاف</button>
+          <button type="button" class="chip" data-opt="review"><svg class="ic"><use href="#i-scissors"/></svg>مراجعة قبل الإخراج</button>
           <button type="button" class="chip" data-opt="short_fill"><svg class="ic"><use href="#i-lib"/></svg>شورتس بخلفية ضبابية</button>
         </div>
         <div class="field" id="layout-field"><span class="lbl">المتكلمون في الشورتس</span>
@@ -730,6 +745,11 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         </div>
       </section>
       <section class="card" style="--i:7">
+        <h2 class="h2"><svg class="ic"><use href="#i-link"/></svg>الرابط الثابت والحفظ الدائم</h2>
+        <div class="row"><div><b>الرابط الثابت</b><small id="fx-sum"></small></div><button type="button" class="icb" id="fx-copy" aria-label="نسخ الرابط الثابت" hidden><svg class="ic"><use href="#i-copy"/></svg></button></div>
+        <div class="row"><div><b>النسخ الاحتياطي</b><small id="bk-sum"></small></div><button type="button" class="btn ghost sm" id="bk-now" hidden>نسخ الآن</button></div>
+      </section>
+      <section class="card" style="--i:8">
         <div class="row"><div><b>المظهر</b><small id="theme-label">حسب النظام</small></div><button type="button" class="icb" id="theme" aria-label="تبديل المظهر"><svg class="ic"><use href="#i-moon"/></svg></button></div>
         <p class="sub">الإصدار <span class="mono" id="ver"></span> · <a class="link" href="#test">فحص ذاتي</a></p>
       </section>
@@ -769,6 +789,19 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
       <p class="note" id="v-need-key" hidden><svg class="ic"><use href="#i-key"/></svg>هذا الخيار يحتاج مفتاح Gemini من الإعدادات</p>
     </div>
     <button class="btn" popovertarget="voice-pop" popovertargetaction="hide">تم</button>
+  </div>
+</div>
+
+<div class="pop rv" id="rv-pop" popover>
+  <div class="grab"></div>
+  <div class="pop-in">
+    <h2>مراجعة اللقطات <span class="sub" id="rv-title"></span></h2>
+    <div class="seg sm" id="rv-tabs" role="tablist" aria-label="اللقطات"></div>
+    <div id="rv-body"></div>
+    <div class="acts rv-acts">
+      <button class="btn ghost" type="button" id="rv-alt"><svg class="ic"><use href="#i-retry"/></svg>لقطة بديلة</button>
+      <button class="btn" type="button" id="rv-go"><svg class="ic"><use href="#i-spark"/></svg>إخراج اللقطات</button>
+    </div>
   </div>
 </div>
 
@@ -906,7 +939,7 @@ function bindGroup(root, get, set, attr = "data-v") {
 function defaultForm(st) {
   const d = st.defaults;
   return { src: "links", links: "", keyword: "", filter: "today", file: null, parts: d.parts, formats: { ...d.formats },
-           face: d.face, hook: d.hook, short_fill: d.short_fill, layout: d.layout || "track", audio: { ...d.audio }, edit: { ...d.edit } };
+           face: d.face, hook: d.hook, short_fill: d.short_fill, review: !!d.review, layout: d.layout || "track", audio: { ...d.audio }, edit: { ...d.edit } };
 }
 function setForm(patch) { const f = { ...S.form(), ...patch }; S.form.set(f); store.set(CONFIG.draftKey, { ...f, file: null }); }
 function setAudio(patch) { setForm({ audio: { ...S.form().audio, ...patch } }); }
@@ -952,7 +985,7 @@ function initStudio() {
   $("#job-form").addEventListener("submit", async e => {
     e.preventDefault();
     const f = F(), btn = $("#start");
-    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, layout: f.layout || "track", audio: f.audio, edit: f.edit };
+    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, review: !!f.review, layout: f.layout || "track", audio: f.audio, edit: f.edit };
     try {
       if (f.src === "links") { if (!f.links.trim()) throw new Error("الصق رابطاً واحداً على الأقل"); body.source = { type: "links", links: f.links }; }
       else if (f.src === "trend") { if (!f.keyword.trim()) throw new Error("اكتب كلمة مفتاحية"); body.source = { type: "trend", keyword: f.keyword, filter: f.filter }; }
@@ -1058,7 +1091,7 @@ function pickJob() {
   return jobs.find(j => j.id === sel) || jobs.find(j => j.status === "running") || jobs.find(j => j.status === "queued") || jobs[0];
 }
 const statusTag = j => ({ running: `<span class="livetag"><i></i>قيد الإنتاج</span>`, queued: `<span class="livetag wait"><i></i>في الطابور</span>`,
-  done: `<span class="livetag ok"><i></i>اكتملت</span>`, failed: `<span class="livetag bad"><i></i>فشلت</span>`, canceled: `<span class="livetag wait"><i></i>أُلغيت</span>` })[j.status];
+  done: `<span class="livetag ok"><i></i>اكتملت</span>`, failed: `<span class="livetag bad"><i></i>فشلت</span>`, canceled: `<span class="livetag wait"><i></i>أُلغيت</span>`, review: `<span class="livetag ok"><i></i>جاهزة للمراجعة</span>` })[j.status];
 
 const ui = { dragging: false, pending: false, scrub: {}, logOpen: false };
 function renderJobs() {
@@ -1087,6 +1120,8 @@ function renderJobs() {
           <div class="mon-acts">
             ${j.status === "running" || j.status === "queued" ? `<button class="btn ghost sm bad" data-act="cancel" data-id="${j.id}"><svg class="ic"><use href="#i-x"/></svg>إيقاف</button>` : ""}
             ${j.status === "failed" || j.status === "canceled" ? `<button class="btn ghost sm" data-act="retry" data-id="${j.id}"><svg class="ic"><use href="#i-retry"/></svg>إعادة</button>` : ""}
+            ${j.status === "review" ? `<button class="btn sm" data-review="${j.id}"><svg class="ic"><use href="#i-scissors"/></svg>راجع اللقطات</button>` : ""}
+            ${j.status === "done" || j.status === "failed" ? `<button class="btn ghost sm" data-review="${j.id}"><svg class="ic"><use href="#i-scissors"/></svg>تعديل</button><button class="btn ghost sm" data-act="rerender" data-id="${j.id}"><svg class="ic"><use href="#i-retry"/></svg>إعادة الإخراج</button>` : ""}
             ${j.zip ? `<a class="btn ghost sm" href="${url(j.zip)}"><svg class="ic"><use href="#i-download"/></svg>ZIP</a>` : ""}
             <button class="icb" data-act="delete" data-id="${j.id}" aria-label="${j.status === "running" ? "إيقاف ونقل للسلة" : "نقل لسلة المهملات"}"><svg class="ic"><use href="#i-trash"/></svg></button>
           </div>
@@ -1113,7 +1148,7 @@ function renderJobs() {
   const others = jobs.filter(x => x.id !== j.id).slice(0, 12);
   $("#queue-card").hidden = !others.length;
   $("#queue").innerHTML = others.map(o => `<div class="row"><span class="ring sm ${o.status === "done" ? "done" : o.status === "failed" ? "bad" : ""}" style="--p:${o.pct}"><b>${o.status === "done" ? "✓" : ar(o.pct)}</b></span>
-    <div><b>${esc(o.title)}</b><small>${esc({ running: "قيد الإنتاج", queued: "في الطابور", done: "اكتملت", failed: "فشلت", canceled: "أُلغيت" }[o.status])} · ${ago(o.created)}</small></div>
+    <div><b>${esc(o.title)}</b><small>${esc({ running: "قيد الإنتاج", queued: "في الطابور", done: "اكتملت", failed: "فشلت", canceled: "أُلغيت", review: "جاهزة للمراجعة" }[o.status])} · ${ago(o.created)}</small></div>
     <button class="icb" data-act="delete" data-id="${o.id}" aria-label="نقل لسلة المهملات"><svg class="ic"><use href="#i-trash"/></svg></button>
     <button class="icb" data-pick="${o.id}" aria-label="عرض"><svg class="ic"><use href="#i-chev"/></svg></button></div>`).join("");
   if (canScrub) scrubber(j, det, words, clip);
@@ -1173,6 +1208,92 @@ function scrubber(j, det, words, clip) {
   const prev = ui.scrub[j.id];
   set(prev && prev.clip?.n === clip?.n ? prev.p : clip ? (clip.s + 0.5) / j.duration * 100 : 0);
 }
+// ===== مراجعة اللقطات قبل الإخراج =====
+const RV = { jid: null, data: null, sel: 0, fixes: {}, edits: {}, editing: null };
+async function openReview(jid) {
+  try {
+    const d = await api(`/api/jobs/${jid}/project`);
+    Object.assign(RV, { jid, data: d, sel: 0, fixes: {}, edits: {}, editing: null });
+    $("#rv-title").textContent = d.title;
+    renderReview(); $("#rv-pop").showPopover(); buzz(6);
+  } catch (err) { fail(err); }
+}
+const rvClip = () => RV.data.clips[RV.sel];
+const rvGet = c => ({ s: c.s, e: c.e, title: c.title, hook: c.hook, thumb: c.thumb, ...(RV.edits[c.n] || {}) });
+function rvSet(patch) { const c = rvClip(); RV.edits[c.n] = { ...rvGet(c), ...patch }; }
+function renderReview() {
+  const d = RV.data, c = rvClip(), v = rvGet(c), [a, b] = c.win, span = Math.max(1, b - a);
+  $("#rv-tabs").innerHTML = d.clips.map((x, i) => `<button type="button" data-rv-tab="${i}" aria-pressed="${i === RV.sel}">الجزء ${PARTS[i] || i + 1}</button>`).join("");
+  const pct = t => ((t - a) / span * 100).toFixed(2);
+  $("#rv-body").innerHTML = `
+    ${d.source ? `<video id="rv-video" playsinline preload="metadata" src="/api/jobs/${RV.jid}/source#t=${v.s}"></video>` : `<p class="note">الفيديو المصدر غير محفوظ · يمكنك تعديل النصوص فقط</p>`}
+    <div class="field"><span class="lbl">حدود اللقطة <b class="mono" id="rv-len">${mmss(v.e - v.s)}</b></span>
+      <div class="rv-range"><span class="sel" style="inset-inline-start:${pct(v.s)}%;inset-inline-end:${(100 - pct(v.e)).toFixed(2)}%"></span>
+        <input type="range" id="rv-s" min="${a}" max="${b}" step="0.1" value="${v.s}" aria-label="بداية اللقطة" dir="ltr">
+        <input type="range" id="rv-e" min="${a}" max="${b}" step="0.1" value="${v.e}" aria-label="نهاية اللقطة" dir="ltr"></div>
+      <div class="rv-times"><span>${mmss(v.s)}</span><button class="btn ghost sm" type="button" id="rv-play"><svg class="ic"><use href="#i-play"/></svg>معاينة</button><span>${mmss(v.e)}</span></div></div>
+    <div class="field"><label for="rv-t">العنوان</label><input class="box" id="rv-t" maxlength="120" value="${esc(v.title)}"></div>
+    <div class="field"><label for="rv-h">الخطاف</label><input class="box" id="rv-h" maxlength="120" value="${esc(v.hook)}"></div>
+    <div class="field"><label for="rv-c">نص الغلاف</label><input class="box" id="rv-c" maxlength="120" value="${esc(v.thumb)}"></div>
+    <div class="field"><span class="lbl">النص · اضغط أي كلمة لتصحيحها</span>
+      <div class="rv-words" id="rv-words">${c.words.map(([i, w, s]) => RV.editing === i
+        ? `<input id="rv-fix" data-i="${i}" value="${esc(RV.fixes[i] ?? w)}" aria-label="تصحيح الكلمة">`
+        : `<button type="button" data-w="${i}" class="${s < v.s || s >= v.e ? "out" : ""}${RV.fixes[i] !== undefined ? " fixed" : ""}">${esc(RV.fixes[i] ?? w)}</button>`).join("")}</div></div>`;
+  const fx = $("#rv-fix"); if (fx) { fx.focus(); fx.select(); }
+}
+function rvRange() {
+  let s = +$("#rv-s").value, e = +$("#rv-e").value;
+  if (e - s < 5) { if (document.activeElement?.id === "rv-s") s = e - 5; else e = s + 5; }
+  rvSet({ s: Math.round(s * 10) / 10, e: Math.round(e * 10) / 10 });
+  const c = rvClip(), v = rvGet(c), [a, b] = c.win, span = Math.max(1, b - a), sel = $(".rv-range .sel");
+  sel.style.insetInlineStart = ((v.s - a) / span * 100) + "%"; sel.style.insetInlineEnd = (100 - (v.e - a) / span * 100) + "%";
+  $("#rv-len").textContent = mmss(v.e - v.s);
+  const t = $$(".rv-times span"); t[0].textContent = mmss(v.s); t[1].textContent = mmss(v.e);
+  $$("#rv-words [data-w]").forEach(btn => { const w = c.words.find(x => x[0] === +btn.dataset.w); btn.classList.toggle("out", w[2] < v.s || w[2] >= v.e); });
+}
+function rvCommitFix() {
+  const fx = $("#rv-fix"); if (!fx) return;
+  const i = +fx.dataset.i, orig = rvClip().words.find(x => x[0] === i)[1], val = fx.value.replace(/\s+/g, " ").trim();
+  if (val && val !== orig) RV.fixes[i] = val; else delete RV.fixes[i];
+  RV.editing = null; renderReview();
+}
+function initReview() {
+  const pop = $("#rv-pop");
+  pop.addEventListener("click", e => {
+    const tab = e.target.closest("[data-rv-tab]");
+    if (tab) { RV.sel = +tab.dataset.rvTab; RV.editing = null; renderReview(); buzz(4); return; }
+    const w = e.target.closest("[data-w]");
+    if (w) { rvCommitFix(); RV.editing = +w.dataset.w; renderReview(); return; }
+    if (e.target.closest("#rv-play")) {
+      const v = $("#rv-video"), r = rvGet(rvClip()); if (!v) return;
+      v.currentTime = r.s; v.play().catch(() => toast("المعاينة غير متاحة لهذا الملف في المتصفح", true));
+      v.ontimeupdate = () => { if (v.currentTime >= rvGet(rvClip()).e) v.pause(); };
+    }
+  });
+  pop.addEventListener("input", e => {
+    if (e.target.matches("#rv-s,#rv-e")) { rvRange(); const v = $("#rv-video"); if (v) v.currentTime = +e.target.value; }
+    const map = { "rv-t": "title", "rv-h": "hook", "rv-c": "thumb" };
+    if (map[e.target.id]) rvSet({ [map[e.target.id]]: e.target.value });
+  });
+  pop.addEventListener("keydown", e => { if (e.target.id === "rv-fix" && e.key === "Enter") { e.preventDefault(); rvCommitFix(); } });
+  pop.addEventListener("focusout", e => { if (e.target.id === "rv-fix") setTimeout(rvCommitFix, 0); });
+  $("#rv-alt").addEventListener("click", async e => {
+    const b = e.currentTarget; b.disabled = true;
+    try {
+      const n = rvClip().n;
+      RV.data = await api(`/api/jobs/${RV.jid}/alt`, { n }); delete RV.edits[n];
+      renderReview(); toast("اختير مقطع بديل"); buzz(8);
+    } catch (err) { fail(err); } finally { b.disabled = false; }
+  });
+  $("#rv-go").addEventListener("click", async e => {
+    const b = e.currentTarget; b.disabled = true; rvCommitFix();
+    try {
+      const clips = Object.entries(RV.edits).map(([n, v]) => ({ n: +n, ...v }));
+      const r = await api(`/api/jobs/${RV.jid}/produce`, { clips, fixes: RV.fixes });
+      pop.hidePopover(); S.sel.set({ job: RV.jid, clip: 0 }); await pullJobs(); toast(r.msg); buzz(10);
+    } catch (err) { fail(err); } finally { b.disabled = false; }
+  });
+}
 function initJobs() {
   $("#job-detail").addEventListener("click", async e => {
     const shot = e.target.closest("[data-clip]");
@@ -1182,6 +1303,8 @@ function initJobs() {
       else { S.sel.set({ job: j.id, clip: i }); renderJobs(); }
       buzz(5); return;
     }
+    const rv = e.target.closest("[data-review]");
+    if (rv) { openReview(rv.dataset.review); return; }
     if (e.target.closest("[data-act-local=upload]")) { setForm({ src: "file" }); go("studio"); window.scrollTo({ top: 0 }); return; }
     const act = e.target.closest("[data-act]");
     if (act) jobAction(act);
@@ -1429,8 +1552,19 @@ function initTemplates() {
 }
 
 // ===== الإعدادات =====
+function paintPersist(st) {
+  const b = st.backup || {}, fx = st.fixed_url;
+  $("#fx-sum").textContent = fx ? fx : "أضف في Secrets: LAKTA_RELAY_URL و LAKTA_RELAY_TOKEN بعد نشر deploy/relay-worker.js على Cloudflare";
+  $("#fx-copy").hidden = !fx;
+  $("#bk-sum").textContent = { drive: "تلقائي · الملفات محفوظة في Google Drive", local: "تلقائي · الملفات على قرص الخادم",
+    off: "أضف في Kaggle Secrets: KAGGLE_USERNAME و KAGGLE_KEY لتُحفظ المكتبة وتُستعاد كل جلسة",
+    kaggle: b.busy ? "جاري النسخ…" : b.error ? `فشل آخر نسخ: ${b.error}` : b.last ? `آخر نسخة ${ago(b.last)} · تلقائي بعد كل إنتاج` : "تلقائي بعد كل إنتاج" }[b.mode] || "";
+  $("#bk-now").hidden = b.mode !== "kaggle"; $("#bk-now").disabled = !!b.busy;
+}
 function initPrefs() {
   const P = () => S.state().settings;
+  $("#fx-copy").addEventListener("click", () => { navigator.clipboard?.writeText(S.state().fixed_url).then(() => toast("نُسخ الرابط الثابت")); buzz(5); });
+  $("#bk-now").addEventListener("click", async e => { e.currentTarget.disabled = true; try { toast((await api("/api/backup", {})).msg); } catch (err) { fail(err); } });
   const pw = bindGroup("#p-whisper", () => P().whisper, v => savePref({ whisper: v }));
   const pr = bindGroup("#p-res", () => P().resolution, v => savePref({ resolution: +v }));
   const pq = bindGroup("#p-quality", () => P().quality, v => savePref({ quality: v }));
@@ -1475,6 +1609,7 @@ function initPrefs() {
 
   effect(() => {
     const st = S.state(); if (!st) return; const s = st.settings, e = st.env;
+    paintPersist(st);
     pw(); pr(); pq(); pc(); pg();
     $("#p-grain").checked = !!s.grain; $("#p-vclean").checked = s.voice_clean !== false;
     $("#p-auto").checked = s.auto_color !== false; $("#p-lowres").checked = s.lowres_fix !== false; $("#p-stab").checked = !!s.stabilize;
@@ -1543,7 +1678,7 @@ async function boot() {
   document.title = st.app.full_name;
   const draft = store.get(CONFIG.draftKey, null), base = defaultForm(st);
   S.form.set(draft ? { ...base, ...draft, file: null, audio: { ...base.audio, ...draft.audio }, formats: { ...base.formats, ...draft.formats }, edit: { ...base.edit, ...draft.edit } } : base);
-  if (!booted) { booted = true; initStudio(); initVoice(); initJobs(); initLibrary(); initBrand(); initTemplates(); initPrefs(); checkUpdate(st.app.version); }
+  if (!booted) { booted = true; initStudio(); initVoice(); initJobs(); initReview(); initLibrary(); initBrand(); initTemplates(); initPrefs(); checkUpdate(st.app.version); }
   listen();
   go(location.hash.slice(1) || "studio");
 }
