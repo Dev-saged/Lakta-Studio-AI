@@ -7,6 +7,36 @@ SIZES = {("short", 1080): (1080, 1920), ("short", 720): (720, 1280), ("wide", 10
 WM_POS = {"tr": ("W-w-{p}", "{p}"), "tl": ("{p}", "{p}"), "br": ("W-w-{p}", "H-h-{p}"), "bl": ("{p}", "H-h-{p}")}
 
 
+_smooth_ok = {}
+
+
+def smooth_zoom_ok():
+    """زوم متدرج يحتاج متغير الزمن في scale (ffmpeg 5+)؛ وإلا يُستخدم الزوم الثابت"""
+    if "v" not in _smooth_ok:
+        import subprocess
+        try:
+            subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=s=64x64:d=0.3",
+                            "-vf", "scale=w='trunc(64*(1+t)/2)*2':h='trunc(64*(1+t)/2)*2':eval=frame,crop=64:64",
+                            "-f", "null", "-"], check=True, capture_output=True, timeout=30)
+            _smooth_ok["v"] = True
+        except Exception:
+            _smooth_ok["v"] = False
+    return _smooth_ok["v"]
+
+
+def _zoom_filter(W, H, dur, zoomed, punches, smooth):
+    if not smooth:
+        return f",crop=iw/{ZOOM}:ih/{ZOOM},scale={W}:{H}:flags=lanczos,setsar=1" if zoomed else ""
+    # دفع بطيء للأمام بمنحنى ناعم + نبضة زوم عند الكلمات المفتاحية
+    z = f"1.04+0.08*(1-pow(1-min(t/{max(dur, 0.3):.3f},1),3))" if zoomed else "1"
+    for tk in punches[:2]:
+        z += f"+0.06*exp(-pow((t-{tk:.3f})/0.22,2))"
+    if z == "1":
+        return ""
+    return (f",scale=w='trunc({W}*({z})/2)*2':h='trunc({H}*({z})/2)*2':eval=frame:flags=bicubic,"
+            f"crop={W}:{H},setsar=1")
+
+
 def hex_color(c):
     c = (c or "#E8402A").lstrip("#")
     return "0x" + (c if len(c) == 6 and all(x in "0123456789abcdefABCDEF" for x in c) else "E8402A")
@@ -28,6 +58,14 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
                          f"gblur=sigma=12,eq=brightness=-0.07:saturation=1.1,scale={W}:{H}[fbg];[fb]scale={W}:-2:flags=lanczos[ffg];"
                          f"[fbg][ffg]overlay=(W-w)/2:(H-h)/2-H*0.04[fill]")
         src_label = "[fill]"
+    elif fmt == "short" and isinstance(crop, dict):
+        # شاشة مقسومة: المتكلم الأول أعلى والثاني أسفل، بينهما خط رفيع
+        (x1, y1), (x2, y2) = crop["split"]
+        cw, ch, hh = crop["w"], crop["h"], H // 2
+        pre_parts.append(f"[0:v]split[sa][sb];[sa]crop={cw}:{ch}:{x1}:{y1},scale={W}:{hh}:force_original_aspect_ratio=increase:flags=lanczos,"
+                         f"crop={W}:{hh},setsar=1[st];[sb]crop={cw}:{ch}:{x2}:{y2},scale={W}:{hh}:force_original_aspect_ratio=increase:"
+                         f"flags=lanczos,crop={W}:{hh},setsar=1[sbt];[st][sbt]vstack,drawbox=x=0:y={hh - 3}:w=iw:h=6:color=black@0.85:t=fill[split]")
+        src_label = "[split]"
     elif fmt == "short" and crop:
         keys, cw = crop
         v.append(f"crop=w={cw}:h=ih:x='{reframe.expr(keys)}':y=0")
@@ -52,8 +90,10 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         # قص وإعادة ترتيب بالمقاطع: صمت محذوف، افتتاحية مكررة، وزوم متناوب
         n = len(edl["segs"])
         parts = pre_parts + [f"{src_label}{','.join(v)},split={n}" + "".join(f"[e{i}]" for i in range(n))]
+        smooth = bool(edl.get("smooth")) and smooth_zoom_ok()
+        kw = edl.get("kw") or []
         for i, ((a, b), z) in enumerate(zip(edl["segs"], edl["zoom"])):
-            zf = f",crop=iw/{ZOOM}:ih/{ZOOM},scale={W}:{H}:flags=lanczos,setsar=1" if z else ""
+            zf = _zoom_filter(W, H, b - a, z, [k - a for k in kw if a <= k < b], smooth)
             parts.append(f"[e{i}]trim=start={a}:end={b},setpts=PTS-STARTPTS{zf}[c{i}]")
         parts.append("".join(f"[c{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0,{','.join(post)}[v0]")
     else:

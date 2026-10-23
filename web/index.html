@@ -498,12 +498,16 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" class="chip" data-opt="hook"><svg class="ic"><use href="#i-hook"/></svg>الخطاف</button>
           <button type="button" class="chip" data-opt="short_fill"><svg class="ic"><use href="#i-lib"/></svg>شورتس بخلفية ضبابية</button>
         </div>
+        <div class="field" id="layout-field"><span class="lbl">المتكلمون في الشورتس</span>
+          <div class="seg sm" id="f-layout"><button type="button" data-v="track">متكلم واحد</button><button type="button" data-v="active">المتكلم النشط</button><button type="button" data-v="split">شاشة مقسومة</button></div></div>
         <div class="field"><span class="lbl">المونتاج الذكي · مع الصوت الأصلي</span>
           <div class="chips" role="group" aria-label="المونتاج الذكي">
             <button type="button" class="chip" data-edit="silence"><svg class="ic"><use href="#i-scissors"/></svg>حذف الصمت والتأتأة</button>
             <button type="button" class="chip" data-edit="zoom"><svg class="ic"><use href="#i-face"/></svg>زوم ديناميكي</button>
             <button type="button" class="chip" data-edit="cold_open"><svg class="ic"><use href="#i-spark"/></svg>افتتاحية بالخطاف</button>
             <button type="button" class="chip" data-edit="sfx"><svg class="ic"><use href="#i-mic"/></svg>مؤثرات صوتية</button>
+            <button type="button" class="chip" data-edit="smooth"><svg class="ic"><use href="#i-face"/></svg>زوم سينمائي ناعم</button>
+            <button type="button" class="chip" data-edit="scenes"><svg class="ic"><use href="#i-scissors"/></svg>حسب المشاهد</button>
           </div></div>
         <button type="button" class="sum" popovertarget="voice-pop"><svg class="ic"><use href="#i-mic"/></svg><div><b>الصوت</b><small id="voice-sum"></small></div><svg class="ic"><use href="#i-chev"/></svg></button>
         <button type="button" class="sum" data-go="brand"><svg class="ic"><use href="#i-brand"/></svg><div><b>الهوية البصرية</b><small id="brand-sum"></small></div><svg class="ic"><use href="#i-chev"/></svg></button>
@@ -896,7 +900,7 @@ function bindGroup(root, get, set, attr = "data-v") {
 function defaultForm(st) {
   const d = st.defaults;
   return { src: "links", links: "", keyword: "", filter: "today", file: null, parts: d.parts, formats: { ...d.formats },
-           face: d.face, hook: d.hook, short_fill: d.short_fill, audio: { ...d.audio }, edit: { ...d.edit } };
+           face: d.face, hook: d.hook, short_fill: d.short_fill, layout: d.layout || "track", audio: { ...d.audio }, edit: { ...d.edit } };
 }
 function setForm(patch) { const f = { ...S.form(), ...patch }; S.form.set(f); store.set(CONFIG.draftKey, { ...f, file: null }); }
 function setAudio(patch) { setForm({ audio: { ...S.form().audio, ...patch } }); }
@@ -907,6 +911,7 @@ function initStudio() {
   const paintSrc = bindGroup("#src-tabs", () => F().src, v => setForm({ src: v }), "data-src");
   const paintFilter = bindGroup("#f-filter", () => F().filter, v => setForm({ filter: v }));
   const paintParts = bindGroup("#f-parts", () => F().parts, v => setForm({ parts: +v }));
+  const paintLayout = bindGroup("#f-layout", () => F().layout || "track", v => setForm({ layout: v }));
   $$("[data-opt]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.opt;
     if (k === "short" || k === "wide") setForm({ formats: { ...F().formats, [k]: !F().formats[k] } }); else setForm({ [k]: !F()[k] });
@@ -925,7 +930,8 @@ function initStudio() {
     const f = F(); if (!f) return;
     paintSrc(); paintFilter(); paintParts();
     $$("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== f.src);
-    $$("[data-edit]").forEach(b => { b.setAttribute("aria-pressed", String(!!f.edit[b.dataset.edit])); b.disabled = f.audio.mode !== "original" && b.dataset.edit !== "sfx"; });
+    $$("[data-edit]").forEach(b => { b.setAttribute("aria-pressed", String(!!f.edit[b.dataset.edit])); b.disabled = f.audio.mode !== "original" && !["sfx", "scenes"].includes(b.dataset.edit); });
+    paintLayout(); $("#layout-field").hidden = !f.face || !f.formats.short || f.short_fill;
     $$("[data-opt]").forEach(b => { const k = b.dataset.opt; b.setAttribute("aria-pressed", String(k === "short" || k === "wide" ? !!f.formats[k] : !!f[k])); });
     if ($("#f-links").value !== f.links) $("#f-links").value = f.links;
     if ($("#f-kw").value !== f.keyword) $("#f-kw").value = f.keyword;
@@ -940,7 +946,7 @@ function initStudio() {
   $("#job-form").addEventListener("submit", async e => {
     e.preventDefault();
     const f = F(), btn = $("#start");
-    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, audio: f.audio, edit: f.edit };
+    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, layout: f.layout || "track", audio: f.audio, edit: f.edit };
     try {
       if (f.src === "links") { if (!f.links.trim()) throw new Error("الصق رابطاً واحداً على الأقل"); body.source = { type: "links", links: f.links }; }
       else if (f.src === "trend") { if (!f.keyword.trim()) throw new Error("اكتب كلمة مفتاحية"); body.source = { type: "trend", keyword: f.keyword, filter: f.filter }; }
