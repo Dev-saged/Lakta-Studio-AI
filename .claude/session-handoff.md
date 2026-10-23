@@ -1,13 +1,13 @@
 # session-handoff
 
 ## Where we stopped
-- Stacked branches: fix/telegram-zip (#11, 34.5.1) → fix/easy-login (#12, 34.5.2) → feature/packaging (34.6.0) → feature/look-sound (34.7.0) → feature/motion (34.8.0)
+- Stacked branches: feature/packaging (#13) → feature/look-sound (#14) → feature/motion (#15) → docs/readme (#16)
+  → perf/fast-transcribe (34.9.0) → feature/smart-cut (34.10.0) → feature/captions-pro (34.11.0) → feature/image-quality (34.12.0)
 
 ## Next step
-- Merge in that order, then a real Kaggle run: check keyword coloring, flash/whoosh at cold open, HEVC playback on phone, Telegram per-part bundles
+- Merge PRs in order, then a real Kaggle run: log line "التفريغ: …×" for speed, split/active layouts on a two-person podcast, punch phrase with Gemini key
 
 ## Decisions made this session
-- HEVC stays in MP4 (hvc1 tag); H.264 remains default for widest compatibility
-- Zip internals: folder per part with Arabic names; server-side file names unchanged
-- SFX are generated locally with ffmpeg lavfi (no licensed assets); max 5 pops, 2.5s apart
-- SFX chip works in every audio mode; other smart-edit chips only with original audio
+- Batched whisper on GPU (16) and CPU (8); sequential path kept as fallback
+- Smooth zoom needs ffmpeg 5+ (scale eval=frame with t); capability-checked, falls back to hard zoom
+- Layout default stays "track"; title cards default off; safe zone, punch, auto color, low-res fix default on; stabilize off

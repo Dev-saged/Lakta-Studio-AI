@@ -8,6 +8,31 @@ WM_POS = {"tr": ("W-w-{p}", "{p}"), "tl": ("{p}", "{p}"), "br": ("W-w-{p}", "H-h
 
 
 _smooth_ok = {}
+_filters = {}
+
+
+def has_filter(name):
+    if "list" not in _filters:
+        import subprocess
+        try:
+            out = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True, timeout=30).stdout
+            _filters["list"] = {ln.split()[1] for ln in out.splitlines() if len(ln.split()) > 2 and ln.startswith(" ")}
+        except Exception:
+            _filters["list"] = set()
+    return name in _filters["list"]
+
+
+def stab_prep(src, s, dur_src, work, tag, cancel=None):
+    """تثبيت الصورة: تحليل vidstab بمرور أول، أو deshake بمرور واحد إن لم يتوفر"""
+    if has_filter("vidstabdetect") and has_filter("vidstabtransform"):
+        trf = work / f"stab_{tag}.trf"
+        try:
+            run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-ss", f"{s:.3f}", "-t", f"{dur_src:.3f}", "-i", str(src),
+                 "-vf", f"vidstabdetect=shakiness=5:accuracy=12:result='{filter_path(trf)}'", "-f", "null", "-"], cancel=cancel)
+            return ("vidstab", trf)
+        except RuntimeError:
+            pass
+    return ("deshake", None) if has_filter("deshake") else None
 
 
 def smooth_zoom_ok():
@@ -50,11 +75,22 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
     D = f"{out_dur:.3f}"
     v = []
     look = look or {}
-    src_label = "[0:v]"
-    pre_parts = []
+    pre_parts, pre = [], []
+    stab = look.get("stab")
+    if stab:
+        pre.append(f"vidstabtransform=input='{filter_path(stab[1])}':smoothing=18:optzoom=1:interpol=bicubic"
+                   if stab[0] == "vidstab" else "deshake=rx=32:ry=32:edge=mirror")
+    if look.get("src_h") and H / look["src_h"] > 1.25:
+        # مصدر أقل دقة من المخرج: إزالة تشويش الضغط قبل التكبير
+        pre.append("hqdn3d=1.2:1.2:4:4")
+    base = "[0:v]"
+    if pre:
+        pre_parts.append(f"[0:v]{','.join(pre)}[base]")
+        base = "[base]"
+    src_label = base
     if fmt == "short" and fill:
         # خلفية ضبابية: الإطار العريض كاملاً فوق نسخة مكبّرة ومموّهة منه
-        pre_parts.append(f"[0:v]split[fa][fb];[fa]scale={W // 4}:{H // 4}:force_original_aspect_ratio=increase,crop={W // 4}:{H // 4},"
+        pre_parts.append(f"{base}split[fa][fb];[fa]scale={W // 4}:{H // 4}:force_original_aspect_ratio=increase,crop={W // 4}:{H // 4},"
                          f"gblur=sigma=12,eq=brightness=-0.07:saturation=1.1,scale={W}:{H}[fbg];[fb]scale={W}:-2:flags=lanczos[ffg];"
                          f"[fbg][ffg]overlay=(W-w)/2:(H-h)/2-H*0.04[fill]")
         src_label = "[fill]"
@@ -62,7 +98,7 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         # شاشة مقسومة: المتكلم الأول أعلى والثاني أسفل، بينهما خط رفيع
         (x1, y1), (x2, y2) = crop["split"]
         cw, ch, hh = crop["w"], crop["h"], H // 2
-        pre_parts.append(f"[0:v]split[sa][sb];[sa]crop={cw}:{ch}:{x1}:{y1},scale={W}:{hh}:force_original_aspect_ratio=increase:flags=lanczos,"
+        pre_parts.append(f"{base}split[sa][sb];[sa]crop={cw}:{ch}:{x1}:{y1},scale={W}:{hh}:force_original_aspect_ratio=increase:flags=lanczos,"
                          f"crop={W}:{hh},setsar=1[st];[sb]crop={cw}:{ch}:{x2}:{y2},scale={W}:{hh}:force_original_aspect_ratio=increase:"
                          f"flags=lanczos,crop={W}:{hh},setsar=1[sbt];[st][sbt]vstack,drawbox=x=0:y={hh - 3}:w=iw:h=6:color=black@0.85:t=fill[split]")
         src_label = "[split]"
@@ -72,7 +108,7 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos,crop={W}:{H}")
     else:
         v.append(f"scale={W}:{H}:force_original_aspect_ratio=decrease:flags=lanczos,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=black")
-    v += enhance_filters(quality, look.get("grade"), look.get("grain")) + ["setsar=1"]
+    v += enhance_filters(quality, look.get("grade"), look.get("grain"), look.get("auto")) + ["setsar=1"]
     post = [f"setpts=(PTS-STARTPTS)/{speed:.4f}", "fps=30"]
     if (fx or {}).get("flash") is not None:
         # وميض انتقال عند نهاية الافتتاحية
