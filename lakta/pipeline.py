@@ -114,8 +114,13 @@ class Pipeline:
             dur_src = c["e"] - c["s"]
             item = {"c": c, "s": c["s"], "dur_src": dur_src, "out_dur": dur_src / speed,
                     "words": captions.shift(tr["words"], c["s"], c["e"], speed)}
+            ed = opts.get("edit") or {}
+            if ed.get("scenes", True) and (opts.get("face") or ed.get("zoom")) and meta.get("width"):
+                item["scenes"] = reframe.scenes(src["path"], c["s"], dur_src)
             if a["mode"] == "original":
-                edl = edit.plan(tr["words"], c["s"], c["e"], opts, c.get("open"))
+                edl = edit.plan(tr["words"], c["s"], c["e"], opts, c.get("open"), item.get("scenes"))
+                if edl and edl.get("smooth"):
+                    edl["kw"] = _kw_times(tr["words"], c, c.get("keywords"))
                 if edl:
                     item.update(edl=edl, out_dur=edit.total(edl["abs"]) / speed, words=edit.remap(tr["words"], edl["abs"], speed))
                     cut = dur_src - edit.total(edl["abs"]) + (edl["abs"][0][1] - edl["abs"][0][0] if edl["cold"] else 0)
@@ -166,12 +171,13 @@ class Pipeline:
                 mix = audio.add_sfx(mix, work / f"mixfx_{i}.wav", fx["sfx"], env.assets, cancel)
             crop = None
             if "short" in fmts:
-                crop = reframe.plan(src["path"], p["s"], p["dur_src"], meta["width"], meta["height"], env.assets, log) if opts.get("face") \
+                crop = reframe.plan(src["path"], p["s"], p["dur_src"], meta["width"], meta["height"], env.assets, log,
+                                    layout=opts.get("layout") or "track", cuts=p.get("scenes")) if opts.get("face") \
                     else ([(0.0, max(0, (meta["width"] - int(meta["height"] * 9 / 16)) // 2))], int(meta["height"] * 9 / 16) // 2 * 2)
             still = thumbs.best_frame(src["path"], p["s"], p["dur_src"], work, i)
             if still:
                 files = thumbs.make(still, out, c["thumb"], n, font_file, brand,
-                                    crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop else None,
+                                    crop_x=reframe.x_at(crop[0], p["dur_src"] * 0.3) if crop and not isinstance(crop, dict) else None,
                                     templates={f: _template(env, brand, f) or _gen_thumb(env, brand, f, font_file, work) for f in ("short", "wide")})
                 c["files"].update({k: f"{job.id}/{v.name}" for k, v in files.items()})
             try:
@@ -234,6 +240,16 @@ def _gen_thumb(env, brand, fmt, font_file, work):
     p = work / f"tpl_thumb_{fmt}.png"
     img.save(p)
     return p
+
+
+def _kw_times(words, c, keywords, gap=2.5):
+    """أزمنة الكلمات المفتاحية نسبةً لبداية اللقطة (لنبضة الزوم)"""
+    kws = {captions._norm(k) for k in (keywords or [])} - {""}
+    out = []
+    for w in words:
+        if c["s"] <= w["s"] < c["e"] and captions._norm(w["w"]) in kws and (not out or w["s"] - c["s"] - out[-1] >= gap):
+            out.append(round(w["s"] - c["s"], 3))
+    return out[:5]
 
 
 def _fx(p, keywords, speed):
