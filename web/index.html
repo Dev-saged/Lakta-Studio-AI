@@ -746,7 +746,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
       <section class="card" style="--i:4">
         <h2 class="h2"><svg class="ic"><use href="#i-scissors"/></svg>المعالجة</h2>
         <div class="field"><span class="lbl">دقة التفريغ (Whisper)</span><div class="seg sm" id="p-whisper"><button type="button" data-v="fast">سريع</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="best">أعلى دقة</button></div></div>
-        <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button></div>
+        <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button><button type="button" data-v="cinematic">موشن فخم</button></div>
           <span class="sub" id="p-quality-hint"></span></div>
         <div class="field"><span class="lbl">تلوين الفيديو</span><div class="seg sm" id="p-grade"><button type="button" data-v="none">بدون</button><button type="button" data-v="cinema">سينمائي</button><button type="button" data-v="warm">دافئ</button><button type="button" data-v="cool">بارد</button><button type="button" data-v="vivid">حيوي</button></div></div>
         <div class="row"><div><b>حبيبات فيلم خفيفة</b><small>ملمس سينمائي ناعم</small></div><input type="checkbox" class="sw" id="p-grain" aria-label="حبيبات فيلم"></div>
@@ -1696,7 +1696,8 @@ function initPrefs() {
   [["#p-auto", "auto_color"], ["#p-lowres", "lowres_fix"], ["#p-stab", "stabilize"], ["#p-pack", "publish_pack"]].forEach(([id, k]) => $(id).addEventListener("change", e => savePref({ [k]: e.target.checked })));
   $("#p-tlight").addEventListener("change", e => savePref({ telegram_light: e.target.checked }));
   const QH = { compact: "أصغر حجم · نحو 25MB للدقيقة", balanced: "جودة عالية بحجم معتدل · نحو 40MB للدقيقة",
-               premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس ليبقى القص حاداً · نحو 60MB للدقيقة" };
+               premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس ليبقى القص حاداً · نحو 60MB للدقيقة",
+               cinematic: "نفس وضوح الفخم + حلقات وتوهّج متحرك عند الذروة والافتتاحية والأرقام" };
   const savePref = patch => { const st = S.state(); S.state.set({ ...st, settings: { ...st.settings, ...patch } }); saveSettings(patch); buzz(5); };
   const secret = (id, key) => {
     const el = $(id);

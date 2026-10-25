@@ -73,8 +73,8 @@ def hex_color(c):
 
 def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fonts_dir, brand, watermark,
          crop=None, work=None, cancel=None, progress=None, template=None, tpl=None, quality=None, edl=None, codec="h264",
-         look=None, fill=False, fx=None):
-    """template: قالب PNG مرفوع · tpl: قالب مولَّد {static, prog, cta}"""
+         look=None, fill=False, fx=None, motion=None, motion_assets=None):
+    """template: قالب PNG مرفوع · tpl: قالب مولَّد {static, prog, cta} · motion: تعبير geq اختياري لوميض فخم"""
     W, H = SIZES[(fmt, 720 if int(res) <= 720 else 1080)]
     D = f"{out_dur:.3f}"
     v = []
@@ -149,6 +149,21 @@ def clip(src, out, fmt, res, s, dur_src, out_dur, speed, audio_wav, ass_path, fo
         parts.append(f"[{idx}:v]scale={W}:{H},format=rgba[tp]")
         step("{cur}[tp]overlay=0:0:format=auto{out}", "[v1]")
         idx += 1
+    if motion:
+        ring_png, glow_png = motion_assets
+        hexcol = hex_color((brand.get("template") or {}).get("accent") or brand.get("frame_color")).replace("0x", "")
+        tr, tg, tb = (int(hexcol[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        for k, cq in enumerate(motion):
+            asset = ring_png if cq["asset"] == "ring" else glow_png
+            inputs += ["-loop", "1", "-t", D, "-i", str(asset)]
+            w0, w1, t0, dur = cq["w0"] * W, cq["w1"] * W, cq["t0"], cq["dur"]
+            sw = f"trunc(({w0:.1f}+{w1 - w0:.1f}*min(max((t-{t0:.3f})/{dur:.3f},0),1))/2)*2"
+            parts.append(f"[{idx}:v]scale=w='{sw}':h=-1:eval=frame,format=rgba,"
+                         f"colorchannelmixer=rr={tr:.3f}:rg=0:rb=0:gr=0:gg={tg:.3f}:gb=0:br=0:bg=0:bb={tb:.3f}:aa=1,"
+                         f"fade=t=in:st={t0:.3f}:d={cq['fin']:.3f}:alpha=1,"
+                         f"fade=t=out:st={t0 + dur - cq['fout']:.3f}:d={cq['fout']:.3f}:alpha=1[mo{k}]")
+            step(f"{{cur}}[mo{k}]overlay=(W-w)/2:{cq['cy']:.3f}*H-h/2:format=auto:enable='between(t,{t0:.3f},{t0 + dur:.3f})'{{out}}", f"[vm{k}]")
+            idx += 1
     step(f"{{cur}}ass='{filter_path(ass_path)}':fontsdir='{filter_path(fonts_dir)}':shaping=complex{{out}}", "[v2]")
     pg = (tpl or {}).get("prog")
     if pg:
