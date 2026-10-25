@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, backup, captions, covers, director, edit, ingest, package, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, backup, captions, covers, director, edit, ingest, motion, package, reframe, render, templates, thumbs, transcribe, voice
 from .notify import Telegram, safe_name
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide", "square": "Square", "portrait": "Portrait"}
@@ -87,7 +87,7 @@ class Pipeline:
             else:
                 url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
                 # «فخم» مع الشورتس: تنزيل حتى 4K ليبقى القص العمودي حاداً
-                dl_h = 2160 if st.get("quality") == "premium" and opts["formats"].get("short") else None
+                dl_h = 2160 if st.get("quality") in ("premium", "cinematic") and opts["formats"].get("short") else None
                 src = ingest.download(url, work, st, env, log, job.progress, job.note, dl_h)
             meta = ingest.describe(src)
             dur = meta["duration"]
@@ -225,9 +225,12 @@ class Pipeline:
                 job.note(f"اللقطة {n} · {package.FMT.get(fmt, fmt)}")
                 fcrop = crop if fmt == "short" else reframe.rescale(crop, meta["width"], meta["height"], RATIO[fmt]) if fmt in RATIO and crop else None
                 W, H = render.SIZES[(fmt, 720 if res <= 720 else 1080)]
+                ex = _extras(brand, p, c, n, len(plan), fmt, None if opts.get("short_fill") else fcrop)
                 ass = captions.build(work / f"cap_{i}_{fmt}.ass", p["words"], p["out_dur"], W, H, brand, family,
                                      c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"),
-                                     extras=_extras(brand, p, c, n, len(plan), fmt, None if opts.get("short_fill") else fcrop))
+                                     extras=ex)
+                mpts = motion.cues(ex, fx, p["out_dur"]) if st.get("quality") == "cinematic" else []
+                massets = motion.assets(env.assets) if mpts else None
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
@@ -237,7 +240,7 @@ class Pipeline:
                             edl=p.get("edl"), codec=st.get("codec"),
                             look={"grade": st.get("grade"), "grain": st.get("grain"), "auto": st.get("auto_color") is not False,
                                   "src_h": meta["height"] if st.get("lowres_fix") is not False else None, "stab": stab},
-                            fill=opts.get("short_fill"), fx=fx)
+                            fill=opts.get("short_fill"), fx=fx, motion=mpts, motion_assets=massets)
                 intro, outro = (env.assets / brand[k] if brand.get(k) and (env.assets / brand[k]).exists() else None
                                 for k in ("intro_video", "outro_video"))
                 if intro or outro:
