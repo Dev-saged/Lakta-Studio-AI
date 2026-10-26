@@ -74,6 +74,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 
 - Ornament toggle disabled without key + raw 429 toast vanishing: switch always enabled, geometric fallback, sticky copyable errors, friendly() maps Gemini errors
 - Hook title shown whole video: ASS Hook line now ends at captions.HOOK_SECONDS (4.5s) with fade; cover keeps the text
+- Topic tab (index.html source tab `data-src=topic`, `#f-topic`, `#scene-list`, `#topic-keys`; server `/api/topic/script`): form state topic/tsec/script; `.only-media` hides parts/face/edit controls; voice sheet hides mode/text for topic
 
 ## Open issues
 - (none) · quality, covers, smart edit, fonts delivered in 34.2–34.5
