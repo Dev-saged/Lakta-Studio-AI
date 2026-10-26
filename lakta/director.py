@@ -22,7 +22,7 @@ def friendly(e, kind="text"):
     low = m.lower()
     if "429" in m or "resource_exhausted" in low or "quota" in low:
         if kind == "image":
-            return "حصة مفتاح Gemini لا تسمح بتوليد الصور (الخطة المجانية لا تشملها). فعّل الفوترة في Google AI Studio، أو استخدم الزخرفة الهندسية."
+            return "توليد الصور غير متاح بمفتاح Gemini الحالي (الخطة المجانية لا تشمله)."
         return "تجاوزت حصة Gemini المتاحة لمفتاحك الآن. انتظر دقيقة وأعد المحاولة، أو راجع الحصة في ai.dev/rate-limit."
     if "api key not valid" in low or "api_key_invalid" in low or "permission_denied" in low or "403" in m:
         return "مفتاح Gemini غير صالح أو لا يملك صلاحية لهذا النموذج. تحقق منه في الإعدادات."
