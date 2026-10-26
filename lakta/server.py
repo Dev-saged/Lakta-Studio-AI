@@ -533,6 +533,18 @@ def handler(app):
                         raise ValueError("خيارات غير صالحة")
                     p = voice.preview(app.settings, eng, v, d, app.env.temp)
                     return self._json({"url": f"/cache/{p.name}"})
+                if path == "/api/topic/script":
+                    topic = str(body.get("topic", "")).strip()[:300]
+                    text = str(body.get("text", "")).strip()[:3000]
+                    if text:
+                        return self._json({"script": scripts.from_text(text, topic)})
+                    secs = int(body.get("seconds") or 45)
+                    dia = str(body.get("dialect", "msa"))
+                    if not topic or secs not in (30, 45, 60):
+                        raise ValueError("اكتب فكرة الفيديو")
+                    if not app.settings.get("gemini_key"):
+                        raise ValueError("كتابة السكربت تحتاج مفتاح Gemini من الإعدادات · أو الصق سكربتك بنفسك")
+                    return self._json({"script": scripts.write(app.settings, topic, secs, dia if dia in ENUMS["dialect"] and dia != "original" else "msa")})
                 if path == "/api/trend/search":
                     kw = str(body.get("keyword", "")).strip()[:120]
                     flt = str(body.get("filter", "week"))

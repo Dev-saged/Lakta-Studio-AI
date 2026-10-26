@@ -317,6 +317,12 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .tpl-wide.ph::before{content:"";position:absolute;inset:14% 36% 34%;border-radius:50%;background:oklch(.6 .05 55 / .5);filter:blur(2px)}
 #tpl-card.busy .tpl-gallery,#tpl-card.busy .tpl-wide{opacity:.45;filter:blur(1.5px);transition:.3s}
 .tlist{display:grid;gap:var(--s2)}
+.scene{display:grid;gap:6px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.scene .row{display:flex;gap:var(--s2);align-items:center}
+.scene textarea,.scene input{width:100%;box-sizing:border-box;min-height:44px;border:0;border-bottom:1px solid var(--line);background:transparent;font:400 var(--t-s)/1.6 var(--f-body);padding:8px 0;resize:none;field-sizing:content}
+.scene textarea:focus,.scene input:focus{outline:0;border-color:var(--accent)}
+.scene .icb{flex:none;min-width:44px;min-height:44px;display:grid;place-items:center;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.own summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--muted);font-size:var(--t-xs)}
 .tcard{display:grid;grid-template-columns:104px 1fr;gap:var(--s3);align-items:center;min-height:64px;padding:8px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:start;cursor:pointer;transition:border-color .2s,background .2s}
 .tcard[aria-checked="true"]{border-color:var(--accent);background:var(--surface-2)}
 .tcard img{width:104px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--surface-2)}
@@ -504,6 +510,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" data-src="links"><svg class="ic"><use href="#i-link"/></svg>روابط</button>
           <button type="button" data-src="trend"><svg class="ic"><use href="#i-trend"/></svg>تريند</button>
           <button type="button" data-src="file"><svg class="ic"><use href="#i-upload"/></svg>رفع ملف</button>
+          <button type="button" data-src="topic"><svg class="ic"><use href="#i-spark"/></svg>فكرة</button>
         </div>
         <div data-panel="links" class="field">
           <label class="inp" for="f-links"><svg class="ic"><use href="#i-link"/></svg><textarea id="f-links" rows="1" dir="ltr" placeholder="youtube.com/watch?v=…"></textarea></label>
@@ -522,12 +529,29 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
           <button type="button" class="btn ghost" id="trend-more" hidden>عرض المزيد</button>
           <span class="sub" id="trend-hint">اكتب كلمة واضغط ابحث · الأقوى مشاهدة أولاً · اختر الفيديو الذي تريده</span>
         </div>
+        <div data-panel="topic" class="field" hidden>
+          <label class="inp" for="f-topic"><svg class="ic"><use href="#i-spark"/></svg><input id="f-topic" maxlength="300" placeholder="فكرة الفيديو، مثل: لماذا تنفد بطارية الهاتف بسرعة"></label>
+          <div class="seg sm" id="f-tsec" role="group" aria-label="مدة الفيديو"><button type="button" data-v="30">٣٠ ثانية</button><button type="button" data-v="45">٤٥ ثانية</button><button type="button" data-v="60">٦٠ ثانية</button></div>
+          <button type="button" class="btn ghost" id="topic-go"><svg class="ic"><use href="#i-spark"/></svg>اكتب السكربت</button>
+          <details class="own"><summary>أو الصق سكربتك بنفسك</summary>
+            <label class="inp" for="f-stext"><textarea id="f-stext" rows="3" placeholder="جملة في كل سطر أو فقرة قصيرة · تُقسَّم إلى مشاهد تلقائياً"></textarea></label>
+            <button type="button" class="btn ghost" id="topic-own">قسّم إلى مشاهد</button>
+          </details>
+          <div class="tlist" id="scene-list" aria-label="مشاهد السكربت"></div>
+          <button type="button" class="btn ghost" id="scene-add" hidden><svg class="ic"><use href="#i-plus"/></svg>مشهد جديد</button>
+          <span class="sub" id="topic-hint">اكتب الفكرة واضغط اكتب السكربت · عدّل النص وكلمات بحث اللقطات (إنجليزية) قبل البدء</span>
+          <div class="field" id="topic-keys" hidden>
+            <p class="note"><svg class="ic"><use href="#i-key"/></svg>لقطات جاهزة حقيقية تحتاج مفتاحاً مجانياً من Pexels أو Pixabay · بدونه تُستخدم خلفيات مولّدة بألوان هويتك</p>
+            <input class="box mono" id="t-pexels" type="password" autocomplete="off" dir="ltr" placeholder="مفتاح Pexels">
+            <input class="box mono" id="t-pixabay" type="password" autocomplete="off" dir="ltr" placeholder="مفتاح Pixabay">
+          </div>
+        </div>
         <div data-panel="file" hidden>
           <label class="drop" id="drop" for="f-file"><svg class="ic"><use href="#i-upload"/></svg><b id="drop-name">اسحب الفيديو هنا أو اختر ملفاً</b><span id="drop-hint">MP4 أو MKV أو MOV · حتى ٤ جيجابايت · يُرفع مباشرة لسيرفرك</span>
             <span class="meter" id="drop-meter" hidden style="width:100%"><i></i></span>
             <input id="f-file" type="file" accept="video/*,.mkv" hidden></label>
         </div>
-        <div class="field"><span class="lbl">عدد الأجزاء من كل فيديو</span>
+        <div class="field only-media"><span class="lbl">عدد الأجزاء من كل فيديو</span>
           <div class="seg" role="group" aria-label="عدد الأجزاء" id="f-parts">
             <button type="button" data-v="1">جزء واحد</button><button type="button" data-v="2">جزءان</button><button type="button" data-v="3">٣ أجزاء</button>
           </div>
@@ -535,19 +559,19 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="chips" role="group" aria-label="المخرجات">
           <button type="button" class="chip" data-opt="short">شورتس ٩:١٦</button>
           <button type="button" class="chip" data-opt="wide">عريض ١٦:٩</button>
-          <button type="button" class="chip" data-opt="square">مربع ١:١</button>
-          <button type="button" class="chip" data-opt="portrait">منشور ٤:٥</button>
-          <button type="button" class="chip" data-opt="face"><svg class="ic"><use href="#i-face"/></svg>تتبع الوجه</button>
+          <button type="button" class="chip only-media" data-opt="square">مربع ١:١</button>
+          <button type="button" class="chip only-media" data-opt="portrait">منشور ٤:٥</button>
+          <button type="button" class="chip only-media" data-opt="face"><svg class="ic"><use href="#i-face"/></svg>تتبع الوجه</button>
           <button type="button" class="chip" data-opt="hook"><svg class="ic"><use href="#i-hook"/></svg>الخطاف</button>
           <button type="button" class="chip" data-opt="review"><svg class="ic"><use href="#i-scissors"/></svg>مراجعة قبل الإخراج</button>
-          <button type="button" class="chip" data-opt="short_fill"><svg class="ic"><use href="#i-lib"/></svg>شورتس بخلفية ضبابية</button>
+          <button type="button" class="chip only-media" data-opt="short_fill"><svg class="ic"><use href="#i-lib"/></svg>شورتس بخلفية ضبابية</button>
         </div>
         <div class="field" id="layout-field"><span class="lbl">المتكلمون في الشورتس</span>
           <div class="seg sm" id="f-layout"><button type="button" data-v="track">متكلم واحد</button><button type="button" data-v="active">المتكلم النشط</button><button type="button" data-v="split">شاشة مقسومة</button></div></div>
         <div class="field"><span class="lbl">جودة هذا الفيديو</span>
           <div class="seg sm" id="f-quality" role="group" aria-label="جودة هذا الفيديو"><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button><button type="button" data-v="cinematic">موشن فخم</button></div>
           <span class="sub" id="f-quality-hint"></span></div>
-        <div class="field"><span class="lbl">المونتاج الذكي · مع الصوت الأصلي</span>
+        <div class="field only-media"><span class="lbl">المونتاج الذكي · مع الصوت الأصلي</span>
           <div class="chips" role="group" aria-label="المونتاج الذكي">
             <button type="button" class="chip" data-edit="silence"><svg class="ic"><use href="#i-scissors"/></svg>حذف الصمت والتأتأة</button>
             <button type="button" class="chip" data-edit="zoom"><svg class="ic"><use href="#i-face"/></svg>زوم ديناميكي</button>
@@ -1013,7 +1037,7 @@ function bindGroup(root, get, set, attr = "data-v") {
 function defaultForm(st) {
   const d = st.defaults;
   return { src: "links", links: "", keyword: "", filter: "week", pick: null, file: null, parts: d.parts, formats: { ...d.formats },
-           face: d.face, hook: d.hook, short_fill: d.short_fill, review: !!d.review, layout: d.layout || "track", quality: "", audio: { ...d.audio }, edit: { ...d.edit } };
+           topic: "", tsec: 45, script: null, face: d.face, hook: d.hook, short_fill: d.short_fill, review: !!d.review, layout: d.layout || "track", quality: "", audio: { ...d.audio }, edit: { ...d.edit } };
 }
 function setForm(patch) { const f = { ...S.form(), ...patch }; S.form.set(f); store.set(CONFIG.draftKey, { ...f, file: null }); }
 function setAudio(patch) { setForm({ audio: { ...S.form().audio, ...patch } }); }
@@ -1052,13 +1076,67 @@ function initStudio() {
   $("#trend-more").addEventListener("click", () => runTrend(true));
   $("#f-kw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); runTrend(false); } });
   $("#f-filter").addEventListener("click", () => { if (F().keyword.trim()) setTimeout(() => runTrend(false), 0); });
+  const paintTsec = bindGroup("#f-tsec", () => String(F().tsec), v => setForm({ tsec: +v }));
+  let shown = null, busyScript = false;
+  const estSec = sc => Math.round(sc.reduce((n, x) => n + x.narration.split(/\s+/).filter(Boolean).length, 0) / 2.4);
+  const editScenes = fn => { const sc = F().script; const next = { ...sc, scenes: fn(sc.scenes.map(x => ({ ...x }))) }; shown = next; setForm({ script: next }); return next; };
+  function paintScenes() {
+    const sc = F().script, list = $("#scene-list");
+    shown = sc; list.replaceChildren();
+    $("#scene-add").hidden = !sc || sc.scenes.length >= 10;
+    if (!sc) return;
+    sc.scenes.forEach((x, i) => {
+      const box = document.createElement("div"); box.className = "scene";
+      const row = document.createElement("div"); row.className = "row";
+      const t = document.createElement("textarea"); t.rows = 2; t.value = x.narration; t.setAttribute("aria-label", "نص المشهد " + ar(i + 1));
+      t.addEventListener("input", () => { editScenes(a => (a[i].narration = t.value, a)); metaScenes(); });
+      row.append(t);
+      if (sc.scenes.length > 2) {
+        const d = document.createElement("button"); d.type = "button"; d.className = "icb"; d.setAttribute("aria-label", "حذف المشهد " + ar(i + 1));
+        d.innerHTML = '<svg class="ic"><use href="#i-trash"/></svg>';
+        d.addEventListener("click", () => { editScenes(a => a.filter((_, k) => k !== i)); paintScenes(); metaScenes(); });
+        row.append(d);
+      }
+      const q = document.createElement("input"); q.dir = "ltr"; q.value = x.query; q.maxLength = 60; q.placeholder = "stock search, e.g. person typing code"; q.setAttribute("aria-label", "كلمات بحث اللقطة " + ar(i + 1));
+      q.addEventListener("input", () => editScenes(a => (a[i].query = q.value, a)));
+      box.append(row, q); list.append(box);
+    });
+    metaScenes();
+  }
+  function metaScenes() {
+    const sc = F().script;
+    $("#topic-hint").textContent = sc ? `${ar(sc.scenes.length)} مشاهد · نحو ${ar(estSec(sc.scenes))} ثانية · عدّل النص أو كلمات البحث ثم اضغط ابدأ` : "اكتب الفكرة واضغط اكتب السكربت · أو الصق سكربتك";
+  }
+  async function makeScript(text) {
+    const f = F(); if (busyScript) return;
+    if (!f.topic.trim() && !text) return fail(new Error("اكتب فكرة الفيديو أولاً"));
+    busyScript = true; const go = $("#topic-go"), own = $("#topic-own"); go.disabled = own.disabled = true; $("#topic-hint").textContent = "جاري كتابة السكربت…";
+    try {
+      const r = await api("/api/topic/script", { topic: f.topic, seconds: f.tsec, dialect: f.audio.dialect, text: text || "" });
+      if (!f.topic.trim()) setForm({ topic: r.script.title });
+      setForm({ script: r.script }); paintScenes(); buzz(8);
+    } catch (e) { fail(e); metaScenes(); }
+    finally { busyScript = false; go.disabled = own.disabled = false; }
+  }
+  $("#topic-go").addEventListener("click", () => makeScript(""));
+  $("#topic-own").addEventListener("click", () => makeScript($("#f-stext").value.trim()));
+  $("#scene-add").addEventListener("click", () => { editScenes(a => [...a, { narration: "", query: F().script.scenes.at(-1)?.query || "", alt_query: "" }]); paintScenes(); });
+  $("#f-topic").addEventListener("input", e => setForm({ topic: e.target.value }));
+  [["#t-pexels", "pexels_key"], ["#t-pixabay", "pixabay_key"]].forEach(([id, key]) => {
+    const el = $(id), commit = async () => {
+      if (!el.value.trim()) return;
+      try { const r = await api("/api/settings", { [key]: el.value.trim() }); el.value = ""; S.state.set({ ...S.state(), settings: r.settings }); toast("حُفظ"); } catch (e) { fail(e); }
+    };
+    el.addEventListener("change", commit); el.addEventListener("keydown", e => e.key === "Enter" && (e.preventDefault(), commit()));
+  });
   const paintLayout = bindGroup("#f-layout", () => F().layout || "track", v => setForm({ layout: v }));
   const FQH = { balanced: "", premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس", cinematic: "حلقات وتوهّج متحرك عند الذروة والافتتاحية والأرقام" };
   const curQ = () => F().quality || S.state().settings.quality || "balanced";
   const paintQ = bindGroup("#f-quality", curQ, v => setForm({ quality: v }));
   $$("[data-opt]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.opt;
-    if (FMTS.includes(k)) setForm({ formats: { ...F().formats, [k]: !F().formats[k] } }); else setForm({ [k]: !F()[k] });
+    if (F().src === "topic" && (k === "short" || k === "wide")) setForm({ formats: { short: k === "short", wide: k === "wide", square: false, portrait: false } });
+    else if (FMTS.includes(k)) setForm({ formats: { ...F().formats, [k]: !F().formats[k] } }); else setForm({ [k]: !F()[k] });
     buzz(5);
   }));
   $$("[data-edit]").forEach(b => b.addEventListener("click", () => { setForm({ edit: { ...F().edit, [b.dataset.edit]: !F().edit[b.dataset.edit] } }); buzz(5); }));
@@ -1072,11 +1150,16 @@ function initStudio() {
 
   effect(() => {
     const f = F(); if (!f) return;
-    paintSrc(); paintFilter(); paintParts();
+    paintSrc(); paintFilter(); paintParts(); paintTsec();
+    const tp = f.src === "topic", st0 = S.state();
+    $$(".only-media").forEach(e => e.hidden = tp);
+    if ($("#f-topic").value !== f.topic) $("#f-topic").value = f.topic;
+    if (f.script !== shown) paintScenes();
+    $("#topic-keys").hidden = !(tp && f.topic.trim() && st0 && !st0.settings.pexels_key.set && !st0.settings.pixabay_key.set);
     $$("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== f.src);
     $$("[data-edit]").forEach(b => { b.setAttribute("aria-pressed", String(!!f.edit[b.dataset.edit])); b.disabled = f.audio.mode !== "original" && !["sfx", "scenes"].includes(b.dataset.edit); });
     paintQ(); $("#f-quality-hint").textContent = FQH[curQ()] || "";
-    paintLayout(); $("#layout-field").hidden = !f.face || !f.formats.short || f.short_fill;
+    paintLayout(); $("#layout-field").hidden = tp || !f.face || !f.formats.short || f.short_fill;
     $$("[data-opt]").forEach(b => { const k = b.dataset.opt; b.setAttribute("aria-pressed", String(FMTS.includes(k) ? !!f.formats[k] : !!f[k])); });
     if ($("#f-links").value !== f.links) $("#f-links").value = f.links;
     if ($("#f-kw").value !== f.keyword) $("#f-kw").value = f.keyword;
@@ -1086,7 +1169,7 @@ function initStudio() {
     $("#drop-name").textContent = f.file ? f.file.obj.name : "اسحب الفيديو هنا أو اختر ملفاً";
     $("#drop-hint").textContent = f.file ? `${(f.file.obj.size / 2 ** 20).toFixed(1)} ميجابايت · جاهز للرفع` : "MP4 أو MKV أو MOV · حتى ٤ جيجابايت · يُرفع مباشرة لسيرفرك";
     $("#voice-sum").textContent = voiceSummary(f.audio);
-  }, S.form);
+  }, S.form, S.state);
 
   $("#job-form").addEventListener("submit", async e => {
     e.preventDefault();
@@ -1094,6 +1177,11 @@ function initStudio() {
     const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, review: !!f.review, layout: f.layout || "track", quality: f.quality || "", audio: f.audio, edit: f.edit };
     try {
       if (f.src === "links") { if (!f.links.trim()) throw new Error("الصق رابطاً واحداً على الأقل"); body.source = { type: "links", links: f.links }; }
+      else if (f.src === "topic") {
+        if (!f.topic.trim() || !f.script) throw new Error("اكتب الفكرة ثم أنشئ السكربت أولاً");
+        if (f.script.scenes.some(x => x.narration.trim().split(/\s+/).length < 2)) throw new Error("كل مشهد يحتاج جملة كاملة");
+        body.source = { type: "topic", topic: f.topic, script: f.script };
+      }
       else if (f.src === "trend") { if (!f.pick) throw new Error("ابحث ثم اختر فيديواً من النتائج"); body.source = { type: "links", links: f.pick.url }; }
       else {
         if (!f.file) throw new Error("اختر ملف فيديو");
@@ -1107,6 +1195,7 @@ function initStudio() {
       buzz([10, 40, 10]);
       toast(r.ids.length > 1 ? `أُضيفت ${ar(r.ids.length)} مهام إلى الطابور` : "بدأت المهمة");
       S.sel.set({ job: r.ids[0], clip: 0 });
+      if (f.src === "topic") setForm({ script: null });
       if (f.src === "links") setForm({ links: "" }); if (f.src === "file") setForm({ file: null });
       go("jobs");
     } catch (err) { fail(err); }
@@ -1128,6 +1217,7 @@ function initStudio() {
 // ===== ورقة الصوت =====
 function voiceSummary(a) {
   const st = S.state(); if (!st) return "";
+  if (S.form().src === "topic") return ["تعليق صوتي للفكرة", (a.engine === "edge" ? "Edge" : "Gemini"), a.voice].join(" · ");
   if (a.mode === "original") return "الصوت الأصلي · مونتاج فقط";
   const all = [...(st.voices.edge[a.dialect] || []), ...st.voices.gemini];
   const v = all.find(x => x[0] === a.voice);
@@ -1152,14 +1242,16 @@ function initVoice() {
   effect(() => {
     const a = A(), s = S.state(); if (!a || !s) return;
     pm(); pe(); pt(); pd();
-    $("#v-opts").hidden = a.mode === "original";
+    const tp = S.form().src === "topic";
+    $("#v-mode").hidden = tp; $("#v-text").closest(".field").hidden = tp;
+    $("#v-opts").hidden = a.mode === "original" && !tp;
     $("#v-music-wrap").hidden = a.mode === "bg";
     $("#v-music-wrap label").textContent = a.mode === "original" ? "موسيقى خفيفة تحت الصوت الأصلي" : "موسيقى الخلفية";
     $("#v-music").innerHTML = `<option value="">بدون موسيقى</option>` + (s.music.length ? `<option value="auto" ${a.music === "auto" ? "selected" : ""}>تلقائي حسب مزاج كل لقطة</option>` : "") + s.music.map(m => `<option ${m === a.music ? "selected" : ""} value="${esc(m)}">${esc(m)}</option>`).join("");
     $("#v-voices").innerHTML = voiceList(a.engine, a.dialect).map(([id, name]) => `
       <button type="button" class="voice" data-voice="${esc(id)}" aria-pressed="${id === a.voice}"><div><b>${esc(name)}</b><small class="mono">${esc(id)}</small></div>
       <span class="icb" role="button" tabindex="0" aria-label="استماع إلى ${esc(name)}" data-preview="${esc(id)}"><svg class="ic"><use href="#i-play"/></svg></span></button>`).join("");
-    const needKey = a.engine === "gemini" || a.text !== "same" || a.dialect !== "original";
+    const needKey = tp ? a.engine === "gemini" : a.engine === "gemini" || a.text !== "same" || a.dialect !== "original";
     $("#v-need-key").hidden = !(needKey && !s.settings.gemini_key.set);
   }, S.form, S.state);
 }
