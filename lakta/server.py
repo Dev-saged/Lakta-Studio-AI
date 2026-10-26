@@ -18,7 +18,7 @@ from .pipeline import deliver_again, steps_for
 
 WEB = ROOT / "web"
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-       "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob:; "
+       "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; "
        "connect-src 'self' https://raw.githubusercontent.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 UPLOADS = {
     "video": ({".mp4", ".mkv", ".mov", ".webm", ".m4v"}, "upload_mb"),
@@ -517,6 +517,13 @@ def handler(app):
                         raise ValueError("خيارات غير صالحة")
                     p = voice.preview(app.settings, eng, v, d, app.env.temp)
                     return self._json({"url": f"/cache/{p.name}"})
+                if path == "/api/trend/search":
+                    kw = str(body.get("keyword", "")).strip()[:120]
+                    flt = str(body.get("filter", "week"))
+                    if not kw or flt not in ENUMS["filter"]:
+                        raise ValueError("أدخل كلمة مفتاحية")
+                    off = max(0, min(60, int(body.get("offset") or 0)))
+                    return self._json(ingest.search_videos(kw, flt, app.settings, app.env, lambda m: None, off, 3))
                 if path.startswith("/api/template/"):
                     return self._json(self._template(path.rsplit("/", 1)[1], body))
                 if path == "/api/fonts/fetch":
