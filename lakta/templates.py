@@ -66,26 +66,97 @@ def design(settings, idea):
     return out
 
 
-def geometric(t, out_path, size=480):
-    """زخرفة هندسية (نجمة ثمانية متكررة) بألوان الهوية — لا تحتاج أي API"""
+MOTIFS = ("star", "deco", "lattice")
+ORN_SCHEMA = {"type": "OBJECT", "properties": {
+    "motif": {"type": "STRING", "enum": list(MOTIFS)}, "density": {"type": "INTEGER"}, "weight": {"type": "NUMBER"}},
+    "required": ["motif", "density", "weight"]}
+_CENTERS = lambda n: ((0, 0), (n, 0), (0, n), (n, n), (n // 2, n // 2))
+
+
+def geometric(t, out_path, size=480, motif="star", density=1, weight=1.0):
+    """زخرفة متجهة قابلة للتكرار بألوان الهوية — بلا أي API"""
     import math
+    density = max(1, min(3, int(density or 1)))
+    weight = max(0.6, min(2.0, float(weight or 1.0)))
     im = Image.new("RGB", (size, size), _rgb(t["base"])[:3])
     d = ImageDraw.Draw(im)
     A = _rgb(t["accent"])[:3]
     soft = tuple(int(a * 0.55 + b * 0.45) for a, b in zip(A, _rgb(t["base"])[:3]))
-    for cx, cy in ((0, 0), (size, 0), (0, size), (size, size), (size // 2, size // 2)):
-        for r, col, w in ((size * 0.22, A, 4), (size * 0.13, soft, 3)):
-            pts = []
-            for k in range(16):
-                rr = r if k % 2 == 0 else r * 0.62
-                a = math.pi / 8 * k
-                pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
-            d.polygon(pts, outline=col, width=w)
-    for x in (size // 2, 0, size):
-        d.line([(x, 0), (x, size)], fill=soft, width=2)
-        d.line([(0, x), (size, x)], fill=soft, width=2)
+    w1, w2, w3 = (max(1, round(v * weight)) for v in (4, 3, 2))
+    if motif == "deco":
+        for cx, cy in _CENTERS(size):
+            for k in range(1, 4 + density):
+                r = size * 0.07 * k
+                d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=A if k % 2 else soft, width=w1 if k % 2 else w2)
+        d.line([(0, 0), (size, size)], fill=soft, width=w3)
+        d.line([(size, 0), (0, size)], fill=soft, width=w3)
+    elif motif == "lattice":
+        n = 2 * density
+        step = size / n
+        for i in range(-n, 2 * n + 1):
+            x = i * step
+            d.line([(x, 0), (x + size, size)], fill=soft, width=w3)
+            d.line([(x, size), (x + size, 0)], fill=soft, width=w3)
+        for i in range(n + 1):
+            for j in range(n + 1):
+                x, y = i * step, j * step
+                d.ellipse([x - 5 * weight, y - 5 * weight, x + 5 * weight, y + 5 * weight], fill=A)
+    else:
+        for cx, cy in _CENTERS(size):
+            for r, col, w in ((size * 0.22, A, w1), (size * 0.13, soft, w2)):
+                pts = []
+                for k in range(16):
+                    rr = r if k % 2 == 0 else r * 0.62
+                    a = math.pi / 8 * k
+                    pts.append((cx + rr * math.cos(a), cy + rr * math.sin(a)))
+                d.polygon(pts, outline=col, width=w)
+        for x in (size // 2, 0, size):
+            d.line([(x, 0), (x, size)], fill=soft, width=2)
+            d.line([(0, x), (size, x)], fill=soft, width=2)
     im.save(out_path)
     return out_path
+
+
+def _retry(fn, tries=3):
+    import time
+    for i in range(tries):
+        try:
+            return fn()
+        except Exception as e:
+            m = str(e).lower()
+            if i + 1 < tries and ("503" in m or "unavailable" in m or "overloaded" in m):
+                time.sleep(2 * (i + 1))
+                continue
+            raise
+
+
+def ornament_spec(settings, idea, mood=""):
+    """نموذج النص (مجاني) يختار نمط الزخرفة وكثافتها، والرسم محلي"""
+    prompt = (f"اختر زخرفة متجهة لإطار فيديو. فكرة القناة: {idea}. الطابع: {mood or 'فخم'}. "
+              "motif: star نجوم إسلامية، deco آرت ديكو بدوائر متحدة المركز، lattice شبكة معينات. "
+              "density من 1 إلى 3، weight سماكة الخط من 0.6 إلى 2.")
+    d = _retry(lambda: director.ask_json(settings, prompt, ORN_SCHEMA, 0.8))
+    return {"motif": d.get("motif") if d.get("motif") in MOTIFS else "star", "density": d.get("density") or 1, "weight": d.get("weight") or 1.0}
+
+
+def make_ornament(settings, t, out_path):
+    """صورة بالذكاء الاصطناعي ← زخرفة بتصميم الذكاء الاصطناعي ← زخرفة جاهزة. يرجع (المصدر، تنبيه)"""
+    idea = t.get("idea") or t.get("mood") or "elegant"
+    if not settings.get("gemini_key"):
+        geometric(t, out_path, motif=MOTIFS[sum(map(ord, idea)) % len(MOTIFS)])
+        return "geometric", "لا يوجد مفتاح Gemini · استخدمتُ زخرفة جاهزة بألوان هويتك."
+    notice = None
+    try:
+        _retry(lambda: ornament(settings, idea, t, out_path))
+        return "ai", None
+    except Exception as e:
+        notice = director.friendly(e, "image")
+    try:
+        geometric(t, out_path, **ornament_spec(settings, idea, t.get("mood", "")))
+        return "ai-vector", notice.rstrip(". ") + " · صمّم الذكاء الاصطناعي زخرفة متجهة بألوان هويتك بدلاً منها."
+    except Exception:
+        geometric(t, out_path, motif=MOTIFS[sum(map(ord, idea)) % len(MOTIFS)])
+        return "geometric", notice.rstrip(". ") + " · استخدمتُ زخرفة جاهزة بألوان هويتك."
 
 
 def ornament(settings, idea, t, out_path):

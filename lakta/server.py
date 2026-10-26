@@ -569,17 +569,7 @@ def handler(app):
                                                   "style": cur["style"] if cur["style"] in templates.STYLES else spec["style"]}}})
             elif act == "ornament":
                 t = templates.tpl_conf(brand)
-                notice = None
-                try:
-                    if not st.get("gemini_key"):
-                        raise RuntimeError("no key")
-                    templates.ornament(st, t["idea"] or t["mood"] or "elegant", t, env.assets / "ornament.png")
-                    source = "ai"
-                except Exception as e:
-                    templates.geometric(t, env.assets / "ornament.png")
-                    source = "geometric"
-                    notice = (director.friendly(e, "image") if st.get("gemini_key") else "لا يوجد مفتاح Gemini") + \
-                        " · استخدمتُ زخرفة هندسية بألوان هويتك بدلاً منها."
+                source, notice = templates.make_ornament(st, t, env.assets / "ornament.png")
                 st.update({"brand": {"template": {"ornament": True}}})
             elif act != "previews":
                 raise ValueError("إجراء غير معروف")
