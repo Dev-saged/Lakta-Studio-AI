@@ -1,5 +1,6 @@
 import glob
 import os
+import time
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -88,6 +89,29 @@ def find_trend(keyword, flt, settings, env, log):
     best = max(entries, key=lambda e: e.get("view_count") or 0)
     log(f"التريند: «{best.get('title', '')}» · {best.get('view_count') or 0:,} مشاهدة")
     return f"https://www.youtube.com/watch?v={best['id']}"
+
+
+# ترتيب بالمشاهدات ضمن النطاق الزمني (فيديوهات فقط)
+TREND_SORT = {"today": "CAMSBAgCEAE%3D", "week": "CAMSBAgDEAE%3D", "": "CAMSAhAB", "podcast": "EgIYAg%3D%3D"}
+
+
+def search_videos(keyword, flt, settings, env, log, offset=0, limit=3):
+    """أقوى الفيديوهات لكلمة مفتاحية بصفحات صغيرة، لاختيار المستخدم"""
+    url = f"https://www.youtube.com/results?search_query={quote_plus(keyword)}&sp={TREND_SORT.get(flt, TREND_SORT['week'])}"
+    info = _attempts(url, settings, env, log, {"extract_flat": "in_playlist", "playlistend": offset + limit + 12}, False)
+    rows, seen = [], set()
+    for e in info.get("entries") or []:
+        vid = e and e.get("id")
+        if not vid or vid in seen or (e.get("duration") or 0) < 90:
+            continue
+        seen.add(vid)
+        ts = e.get("timestamp") or e.get("release_timestamp")
+        rows.append({"id": vid, "title": str(e.get("title") or "")[:140], "channel": str(e.get("channel") or e.get("uploader") or "")[:60],
+                     "views": int(e.get("view_count") or 0), "duration": int(e.get("duration") or 0),
+                     "days": max(0, int((time.time() - ts) // 86400)) if ts else None, "url": f"https://www.youtube.com/watch?v={vid}"})
+    if not rows:
+        raise RuntimeError(f"لم أجد فيديوهات مناسبة لكلمة «{keyword}»")
+    return {"items": rows[offset:offset + limit], "more": len(rows) > offset + limit}
 
 
 def download(url, work, settings, env, log, progress, note=None, height=None):

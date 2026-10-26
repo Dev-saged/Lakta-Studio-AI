@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://raw.githubusercontent.com; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; connect-src 'self' https://raw.githubusercontent.com; base-uri 'none'; form-action 'self'">
 <meta name="theme-color" content="#f6f8fb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#11151f" media="(prefers-color-scheme: dark)">
 <title>استوديو لقطة</title>
@@ -316,6 +316,12 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
 .tpl-wide{aspect-ratio:16/9;max-width:100%;border-radius:var(--r);position:relative;overflow:hidden;border:1.5px solid var(--ink);background:linear-gradient(170deg,oklch(.45 .07 235),oklch(.26 .05 262) 58%,oklch(.34 .08 45))}
 .tpl-wide.ph::before{content:"";position:absolute;inset:14% 36% 34%;border-radius:50%;background:oklch(.6 .05 55 / .5);filter:blur(2px)}
 #tpl-card.busy .tpl-gallery,#tpl-card.busy .tpl-wide{opacity:.45;filter:blur(1.5px);transition:.3s}
+.tlist{display:grid;gap:var(--s2)}
+.tcard{display:grid;grid-template-columns:104px 1fr;gap:var(--s3);align-items:center;min-height:64px;padding:8px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:start;cursor:pointer;transition:border-color .2s,background .2s}
+.tcard[aria-checked="true"]{border-color:var(--accent);background:var(--surface-2)}
+.tcard img{width:104px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--surface-2)}
+.tcard b{display:block;font:600 var(--t-xs)/1.4 var(--f-body);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.tcard small{color:var(--muted);font-size:var(--t-xs)}
 .wmrow{display:flex;gap:var(--s3);align-items:start;flex-wrap:wrap}
 .wm{width:112px;flex:none;aspect-ratio:16/10;border:1px solid var(--line);border-radius:var(--r);display:grid;place-items:center;background:repeating-conic-gradient(var(--surface-2) 0 25%,var(--surface) 0 50%) 0 0/12px 12px;overflow:hidden}
 .wm img{max-width:80%;max-height:80%;object-fit:contain}
@@ -511,7 +517,10 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
             <button type="button" class="chip" data-v="podcast">حلقات طويلة</button>
             <button type="button" class="chip" data-v="">الكل</button>
           </div>
-          <span class="sub">يختار الفيديو الأعلى مشاهدة ويبدأ تلقائياً</span>
+          <button type="button" class="btn ghost" id="trend-go"><svg class="ic"><use href="#i-trend"/></svg>ابحث</button>
+          <div class="tlist" id="trend-list" role="radiogroup" aria-label="نتائج التريند"></div>
+          <button type="button" class="btn ghost" id="trend-more" hidden>عرض المزيد</button>
+          <span class="sub" id="trend-hint">اكتب كلمة واضغط ابحث · الأقوى مشاهدة أولاً · اختر الفيديو الذي تريده</span>
         </div>
         <div data-panel="file" hidden>
           <label class="drop" id="drop" for="f-file"><svg class="ic"><use href="#i-upload"/></svg><b id="drop-name">اسحب الفيديو هنا أو اختر ملفاً</b><span id="drop-hint">MP4 أو MKV أو MOV · حتى ٤ جيجابايت · يُرفع مباشرة لسيرفرك</span>
@@ -991,7 +1000,7 @@ function bindGroup(root, get, set, attr = "data-v") {
 // ===== النموذج (مسودة) =====
 function defaultForm(st) {
   const d = st.defaults;
-  return { src: "links", links: "", keyword: "", filter: "today", file: null, parts: d.parts, formats: { ...d.formats },
+  return { src: "links", links: "", keyword: "", filter: "week", pick: null, file: null, parts: d.parts, formats: { ...d.formats },
            face: d.face, hook: d.hook, short_fill: d.short_fill, review: !!d.review, layout: d.layout || "track", quality: "", audio: { ...d.audio }, edit: { ...d.edit } };
 }
 function setForm(patch) { const f = { ...S.form(), ...patch }; S.form.set(f); store.set(CONFIG.draftKey, { ...f, file: null }); }
@@ -1003,6 +1012,34 @@ function initStudio() {
   const paintSrc = bindGroup("#src-tabs", () => F().src, v => setForm({ src: v }), "data-src");
   const paintFilter = bindGroup("#f-filter", () => F().filter, v => setForm({ filter: v }));
   const paintParts = bindGroup("#f-parts", () => F().parts, v => setForm({ parts: +v }));
+  const fmtViews = n => n >= 1e6 ? ar((n / 1e6).toFixed(1)) + " مليون" : n >= 1e3 ? ar(Math.round(n / 1e3)) + " ألف" : ar(n);
+  const fmtDur = s => ar(Math.floor(s / 60)) + ":" + ar(String(s % 60).padStart(2, "0"));
+  let trendOff = 0, trendBusy = false;
+  async function runTrend(more) {
+    const f = F(); if (!f || trendBusy) return;
+    if (!f.keyword.trim()) return fail(new Error("اكتب كلمة مفتاحية"));
+    trendBusy = true; const list = $("#trend-list"), go = $("#trend-go"), mb = $("#trend-more");
+    go.disabled = mb.disabled = true;
+    if (!more) { trendOff = 0; list.replaceChildren(); setForm({ pick: null }); $("#trend-hint").textContent = "جاري البحث…"; }
+    try {
+      const r = await api("/api/trend/search", { keyword: f.keyword, filter: f.filter, offset: trendOff });
+      for (const v of r.items) {
+        const c = document.createElement("button"); c.type = "button"; c.className = "tcard"; c.setAttribute("role", "radio"); c.setAttribute("aria-checked", "false");
+        const im = document.createElement("img"); im.alt = ""; im.loading = "lazy"; im.src = `https://i.ytimg.com/vi/${encodeURIComponent(v.id)}/mqdefault.jpg`; im.addEventListener("error", () => { im.style.visibility = "hidden"; });
+        const t = document.createElement("div"), b = document.createElement("b"), s = document.createElement("small");
+        b.textContent = v.title; s.textContent = [v.channel, fmtViews(v.views) + " مشاهدة", v.days == null ? "" : v.days === 0 ? "اليوم" : "قبل " + ar(v.days) + " يوم", fmtDur(v.duration)].filter(Boolean).join(" · ");
+        t.append(b, s); c.append(im, t);
+        c.addEventListener("click", () => { $$(".tcard", list).forEach(x => x.setAttribute("aria-checked", String(x === c))); setForm({ pick: { url: v.url, title: v.title } }); buzz(8); });
+        list.append(c);
+      }
+      trendOff += r.items.length; mb.hidden = !r.more; $("#trend-hint").textContent = "اختر الفيديو الذي تريده ثم اضغط ابدأ";
+    } catch (e) { fail(e); $("#trend-hint").textContent = "تعذّر البحث · أعد المحاولة"; }
+    finally { trendBusy = false; go.disabled = mb.disabled = false; }
+  }
+  $("#trend-go").addEventListener("click", () => runTrend(false));
+  $("#trend-more").addEventListener("click", () => runTrend(true));
+  $("#f-kw").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); runTrend(false); } });
+  $("#f-filter").addEventListener("click", () => { if (F().keyword.trim()) setTimeout(() => runTrend(false), 0); });
   const paintLayout = bindGroup("#f-layout", () => F().layout || "track", v => setForm({ layout: v }));
   const FQH = { balanced: "", premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس", cinematic: "حلقات وتوهّج متحرك عند الذروة والافتتاحية والأرقام" };
   const curQ = () => F().quality || S.state().settings.quality || "balanced";
@@ -1045,7 +1082,7 @@ function initStudio() {
     const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, review: !!f.review, layout: f.layout || "track", quality: f.quality || "", audio: f.audio, edit: f.edit };
     try {
       if (f.src === "links") { if (!f.links.trim()) throw new Error("الصق رابطاً واحداً على الأقل"); body.source = { type: "links", links: f.links }; }
-      else if (f.src === "trend") { if (!f.keyword.trim()) throw new Error("اكتب كلمة مفتاحية"); body.source = { type: "trend", keyword: f.keyword, filter: f.filter }; }
+      else if (f.src === "trend") { if (!f.pick) throw new Error("ابحث ثم اختر فيديواً من النتائج"); body.source = { type: "links", links: f.pick.url }; }
       else {
         if (!f.file) throw new Error("اختر ملف فيديو");
         btn.disabled = true; $("#drop-meter").hidden = false;
