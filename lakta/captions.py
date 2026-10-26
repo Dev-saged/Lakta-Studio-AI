@@ -30,6 +30,9 @@ def _norm(w):
     return w
 
 
+HOOK_SECONDS = 4.5
+
+
 def _t(sec):
     sec = max(0.0, sec)
     h, r = divmod(sec, 3600)
@@ -148,7 +151,8 @@ def build(path, words, dur, W, H, brand, font_family, hook=None, keywords=None, 
         "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
     if hook:
-        lines.append(f"Dialogue: 1,{_t(0)},{_t(dur)},Hook,,0,0,0,,{_esc(hook)}")
+        he = min(dur, HOOK_SECONDS)
+        lines.append(f"Dialogue: 1,{_t(0)},{_t(he)},Hook,,0,0,0,,{{\\fad(120,350)}}{_esc(hook)}")
     punch = ex.get("punch")
     if punch:
         ps, pe, ptxt = punch

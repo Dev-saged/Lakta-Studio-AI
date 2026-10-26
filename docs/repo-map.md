@@ -67,6 +67,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Login failed when copying long mixed-case key on phone: 8-digit code (or LAKTA_PASSWORD secret), tolerant matching, copy buttons, lockout after 10 fails
 
 - Ornament toggle disabled without key + raw 429 toast vanishing: switch always enabled, geometric fallback, sticky copyable errors, friendly() maps Gemini errors
+- Hook title shown whole video: ASS Hook line now ends at captions.HOOK_SECONDS (4.5s) with fade; cover keeps the text
 
 ## Open issues
 - (none) · quality, covers, smart edit, fonts delivered in 34.2–34.5
