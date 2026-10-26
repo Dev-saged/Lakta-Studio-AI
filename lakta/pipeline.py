@@ -64,10 +64,13 @@ class Pipeline:
         job.set(voice_label=voice_label(a))
 
         proj = out / "project.json"
+        credits = []
         if job.data.get("phase") == "produce" and proj.exists():
             # إعادة إخراج أو بعد المراجعة: المصدر والتفريغ واللقطات محفوظة
             pj = json.loads(proj.read_text("utf-8"))
             src, meta, tr, clips, seo = pj["src"], pj["meta"], pj["tr"], pj["clips"], pj["seo"]
+            credits = pj.get("credits", [])
+            credits and job.set(credits=credits)
             if not Path(src["path"]).exists():
                 raise RuntimeError("الفيديو المصدر لم يعد محفوظاً · أعد الإنتاج من البداية")
             dur = meta["duration"]
@@ -86,7 +89,8 @@ class Pipeline:
             topic = src_opt["type"] == "topic"
             if topic:
                 src, twords, tused, tnarr = compose.build(env, st, src_opt["script"], opts, work, log, cancel, job.progress)
-                job.set(credits=stock.credits(tused))
+                credits = stock.credits(tused)
+                job.set(credits=credits)
             elif src_opt["type"] == "file":
                 src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
             else:
@@ -136,7 +140,7 @@ class Pipeline:
             job.set(clips=_public(clips), seo=seo)
             job.note(f"{len(clips)} من {max(1, len(segments))} مقطع")
             src = _keep_source(env, job.id, src)
-            proj.write_text(json.dumps({"src": src, "meta": meta, "tr": tr, "clips": clips, "seo": seo}, ensure_ascii=False), "utf-8")
+            proj.write_text(json.dumps({"src": src, "meta": meta, "tr": tr, "clips": clips, "seo": seo, "credits": credits}, ensure_ascii=False), "utf-8")
             if opts.get("review"):
                 log("اللقطات جاهزة للمراجعة")
                 return "review"
@@ -272,7 +276,7 @@ class Pipeline:
         # ٧) التغليف والإرسال
         job.step("package")
         if st.get("publish_pack") is not False:
-            _publish(st, has_key, out, clips, seo, tr, src, meta, log)
+            _publish(st, has_key, out, clips, seo, tr, src, meta, log, credits)
         # ملف مضغوط باسم المشروع: مجلد لكل جزء بأسماء عربية
         title = safe_name(seo['title'] or src['title'])
         items = package.entries(env, job.id, _public(clips))
@@ -353,7 +357,7 @@ def _translate(st, words, lang, log):
     return [(g[0]["s"], g[-1]["e"] + 0.2, t) for g, t in zip(groups, lines)]
 
 
-def _publish(st, has_key, out, clips, seo, tr, src, meta, log):
+def _publish(st, has_key, out, clips, seo, tr, src, meta, log, credits=()):
     """ملفات نشر لكل منصة لكل جزء + فصول الحلقة"""
     pack, chapters = {}, []
     if has_key:
@@ -363,17 +367,20 @@ def _publish(st, has_key, out, clips, seo, tr, src, meta, log):
         except Exception as e:
             log(f"تعذّر ملف النشر الذكي ({director.friendly(e)}) · نسخة أساسية")
     tags = seo.get("hashtags") or []
+    cr = ("\n\nاللقطات:\n" + "\n".join(credits)) if credits else ""
     for c in clips:
         k = pack.get(c["n"]) or {}
         hs = " ".join("#" + h.lstrip("#").replace(" ", "_") for h in (k.get("hashtags") or tags)[:8])
         yt = (f"{k.get('youtube_title') or c.get('full_title') or c['title']}\n\n{k.get('youtube_description') or seo.get('description', '')}\n\n"
-              f"{hs}\n\nالكلمات الدلالية: {', '.join(k.get('youtube_tags') or tags)}")
+              f"{hs}\n\nالكلمات الدلالية: {', '.join(k.get('youtube_tags') or tags)}{cr}")
         alts = c.get("alt_titles") or []
         if alts:
             yt += "\n\nعناوين بديلة:\n" + "\n".join(f"- {a}" for a in alts)
         (out / f"_pub_{c['n']}_yt.txt").write_text(yt, "utf-8-sig")
         (out / f"_pub_{c['n']}_tt.txt").write_text(f"{k.get('tiktok_caption') or c.get('hook') or c['title']}\n\n{hs}", "utf-8-sig")
-        (out / f"_pub_{c['n']}_ig.txt").write_text(f"{k.get('instagram_caption') or c['title']}\n\n{hs}", "utf-8-sig")
+        (out / f"_pub_{c['n']}_ig.txt").write_text(f"{k.get('instagram_caption') or c['title']}\n\n{hs}{cr}", "utf-8-sig")
+    if credits:
+        (out / "_credits.txt").write_text("\n".join(credits), "utf-8-sig")
     if chapters:
         (out / "_chapters.txt").write_text("\n".join(f"{_mmss(t)} {name}" for t, name in chapters), "utf-8-sig")
 
