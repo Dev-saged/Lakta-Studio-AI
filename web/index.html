@@ -751,6 +751,14 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="field"><label for="p-smodel">نموذج الصوت</label><input class="box mono" id="p-smodel" list="dl-tts" dir="ltr" placeholder="auto · latest Flash TTS"></div>
         <datalist id="dl-text"></datalist><datalist id="dl-tts"></datalist>
       </section>
+      <section class="card" style="--i:2">
+        <h2 class="h2"><svg class="ic"><use href="#i-play"/></svg>مفاتيح اللقطات (اختياري)</h2>
+        <div class="field"><label for="p-pexels">Pexels</label><input class="box mono" id="p-pexels" type="password" autocomplete="off" dir="ltr"></div>
+        <div class="field"><label for="p-pixabay">Pixabay</label>
+          <div class="box-row"><input class="box mono" id="p-pixabay" type="password" autocomplete="off" dir="ltr"><button type="button" class="btn ghost" id="t-stock" style="min-height:48px">اختبار</button></div>
+          <span class="note" id="n-stock"></span></div>
+        <span class="sub">تُستخدم في وضع «فكرة» لجلب لقطات مجانية. بدونها تعمل الأداة بلقطات مولَّدة محلياً</span>
+      </section>
       <section class="card" style="--i:3">
         <h2 class="h2"><svg class="ic"><use href="#i-send"/></svg>تيليجرام</h2>
         <div class="field"><label for="p-ttoken">توكن البوت</label><input class="box mono" id="p-ttoken" type="password" autocomplete="off" dir="ltr"></div>
@@ -1761,7 +1769,7 @@ function initPrefs() {
     const commit = async () => { if (!el.value.trim()) return; try { const r = await api("/api/settings", { [key]: el.value.trim() }); el.value = ""; S.state.set({ ...S.state(), settings: r.settings }); toast("حُفظ"); } catch (e) { fail(e); } };
     el.addEventListener("change", commit); el.addEventListener("keydown", e => e.key === "Enter" && (e.preventDefault(), commit()));
   };
-  secret("#p-gkey", "gemini_key"); secret("#p-ttoken", "telegram_token"); secret("#p-tchat", "telegram_chat");
+  secret("#p-pexels", "pexels_key"); secret("#p-pixabay", "pixabay_key"); secret("#p-gkey", "gemini_key"); secret("#p-ttoken", "telegram_token"); secret("#p-tchat", "telegram_chat");
   $("#p-tmodel").addEventListener("change", e => savePref({ text_model: e.target.value.trim() }));
   $("#p-smodel").addEventListener("change", e => savePref({ tts_model: e.target.value.trim() }));
   $("#p-tzip").addEventListener("change", e => savePref({ telegram_zip: e.target.checked }));
@@ -1776,6 +1784,12 @@ function initPrefs() {
     $("#dl-text").innerHTML = r.text.map(m => `<option value="${esc(m)}">`).join("");
     $("#dl-tts").innerHTML = r.tts.map(m => `<option value="${esc(m)}">`).join("");
     return `المفتاح يعمل · ${r.count} نموذجاً متاحاً`;
+  });
+  test("#t-stock", "/api/test/stock", "#n-stock", r => {
+    const rows = [["Pexels", r.pexels], ["Pixabay", r.pixabay]].filter(([, v]) => v !== null);
+    if (!rows.length) throw new Error("أدخل مفتاحاً واحداً على الأقل");
+    const bad = rows.find(([, v]) => v !== true); if (bad) throw new Error(`${bad[0]}: ${bad[1]}`);
+    return rows.map(([n]) => n).join(" و") + " يعمل";
   });
   test("#t-telegram", "/api/test/telegram", "#n-telegram", () => "وصلت الرسالة");
   $("#cookies-del").addEventListener("click", async () => { try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "cookies", name: "youtube_cookies.txt" })) }); toast("حُذف ملف الكوكيز"); } catch (e) { fail(e); } });
@@ -1796,6 +1810,7 @@ function initPrefs() {
     $("#p-codec-hint").textContent = s.codec === "hevc" ? "نفس الجودة بحجم أصغر، والملف يبقى MP4 · قد لا يعمل على أجهزة قديمة أو Firefox للكمبيوتر" : "يعمل على كل الأجهزة والمنصات";
     $("#p-quality-hint").textContent = QH[s.quality] || "";
     const ph = (k, label) => s[k].set ? `${s[k].hint} · من ${s[k].source}` : label;
+    $("#p-pexels").placeholder = ph("pexels_key", "مفتاح Pexels"); $("#p-pixabay").placeholder = ph("pixabay_key", "مفتاح Pixabay");
     $("#p-gkey").placeholder = ph("gemini_key", "AIza…"); $("#p-ttoken").placeholder = ph("telegram_token", "من @BotFather"); $("#p-tchat").placeholder = ph("telegram_chat", "Chat ID");
     if (document.activeElement !== $("#p-tmodel")) $("#p-tmodel").value = s.text_model || "";
     if (document.activeElement !== $("#p-smodel")) $("#p-smodel").value = s.tts_model || "";
