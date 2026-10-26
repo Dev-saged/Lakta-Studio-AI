@@ -61,6 +61,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Trend picker: POST /api/trend/search → ingest.search_videos (YouTube sp sorted by views, week/today, pages of 3); picked url submitted as a normal link job; img-src allows i.ytimg.com (meta + server CSP)
 - PNG frame generator: POST /api/template/export → templates.export_frames saves assets/frame_{short,wide}.png from the current template (no part label); brand frame_* then override the drawn template; download links #b-templates
 - Stock keys are the sole approved external API (CLAUDE.md); missing keys/failures never block: topic mode falls back to generated footage
+- Topic job (source.type=topic): server forces one format (short|wide), audio mode original, face/edit off; pipeline download=compose.build, transcribe=TTS words, direct=single full clip; selftest.run_topic covers it offline
 
 ## Solved bugs (never reintroduce)
 - Arabic captions tofu/reversed: subtitles filter + simple shaping → use ass filter, shaping=complex, Encoding=-1
