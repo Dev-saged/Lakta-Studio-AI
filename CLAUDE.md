@@ -25,6 +25,7 @@ Output: no greetings or filler. Max 3 bullets of explanation. One-line summary b
 - Single-file HTML/CSS/JS + CDN fonts. Python stdlib only; pip deps go to .pypackages (WebToApp Python 3.14).
 - Android packaging: github.com/shiaho777/web-to-app. targetSdk 28 max for server runtimes. CORS bypass is on by default for static HTML. Fetch its README before deciding anything that depends on it.
 - No external API. Offline first: every network call in try/catch with a graceful fallback.
+- Sole approved exception: optional stock-footage keys (Pexels, Pixabay) for topic-to-video; missing keys fall back to generated footage. Add no other API.
 - Mobile-first, Arabic RTL: direction:rtl, logical CSS properties, mirror directional icons.
 - PWA (manifest + service worker) in every project unless excluded.
 - Next.js/TypeScript only if I ask explicitly.
