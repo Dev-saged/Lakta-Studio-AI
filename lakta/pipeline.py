@@ -183,7 +183,7 @@ class Pipeline:
         # ٦) الإخراج
         job.step("render")
         fmts = [f for f in FORMAT_LABEL if opts["formats"].get(f)] or ["short"]
-        wm = env.assets / brand["watermark"] if brand.get("watermark") else None
+        wm = env.assets / brand["watermark"] if brand.get("watermark") and brand.get("watermark_on", True) else None
         wm = wm if wm and wm.exists() else None
         res = int(st.get("resolution") or 1080)
         total = len(plan) * len(fmts)

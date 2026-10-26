@@ -719,6 +719,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         </div>
         <div class="acts">
           <label class="btn ghost" for="up-wm"><svg class="ic"><use href="#i-upload"/></svg>رفع شعار PNG<input type="file" id="up-wm" accept=".png,.webp,.jpg,.jpeg" hidden></label>
+          <button type="button" class="chip" id="wm-on" aria-pressed="true" hidden><svg class="ic"><use href="#i-hook"/></svg>إظهار الشعار</button>
           <button type="button" class="btn ghost bad" id="wm-del" hidden><svg class="ic"><use href="#i-trash"/></svg>إزالة</button>
         </div>
       </section>
@@ -1542,6 +1543,7 @@ function initBrand() {
     try { const r = await api("/api/fonts/fetch", { name }); S.state.set({ ...S.state(), ...r }); $("#gf-name").value = ""; toast(`أُضيف خط ${name}`); buzz([10, 40, 10]); }
     catch (e) { fail(e); } finally { btn.disabled = false; btn.textContent = "تنزيل"; }
   }); up("#up-wm", "watermark", "رُفع الشعار"); up("#up-music", "music", "أُضيف المقطع"); up("#up-cookies", "cookies", "رُفع ملف الكوكيز");
+  $("#wm-on").addEventListener("click", () => { setBrand({ watermark_on: B().watermark_on === false }); buzz(5); });
   $("#wm-del").addEventListener("click", async () => { try { S.state.set({ ...S.state(), ...(await api("/api/delete", { kind: "watermark", name: B().watermark })) }); setBrand({ watermark: "" }); } catch (e) { fail(e); } });
   effect(() => {
     const st = S.state(); if (!st) return; const b = st.settings.brand;
@@ -1566,7 +1568,8 @@ function initBrand() {
     $("#brand-kara").innerHTML = sample.map((w, i) => `<span${i === 1 ? ' class="on"' : i === 3 ? ' class="kw"' : ""}>${esc(w)}</span>`).join(" ");
     $("#b-fonts").innerHTML = st.fonts.map(f => `<button type="button" class="fontopt" data-font="${esc(f)}" aria-pressed="${f === b.font}"><b style="font-family:${fontFamily(f).replace(/"/g, "'")}">لقطة حصرية</b><small>${esc(fontLabel(f))}</small>${f.startsWith("Lakta") ? "" : `<span class="icb" role="button" tabindex="0" data-del-font="${esc(f)}" aria-label="حذف الخط" style="width:36px;height:36px"><svg class="ic"><use href="#i-trash"/></svg></span>`}</button>`).join("");
     $("#wm-prev").innerHTML = b.watermark ? `<img src="/assets/${encodeURIComponent(b.watermark)}?v=${Date.now() % 1e5}" alt="الشعار">` : `<span class="sub">بدون شعار</span>`;
-    $("#wm-del").hidden = !b.watermark;
+    $("#wm-del").hidden = !b.watermark; $("#wm-on").hidden = !b.watermark; $("#wm-on").setAttribute("aria-pressed", String(b.watermark_on !== false));
+    $("#wm-prev").style.opacity = b.watermark && b.watermark_on === false ? ".35" : "";
     if (!$("#dl-gfonts").children.length) $("#dl-gfonts").innerHTML = (st.google_fonts || []).map(n => `<option value="${esc(n)}">`).join("");
     for (const k of ["frame_short", "frame_wide"]) {
       const row = $(`[data-tpl="${k}"]`);
@@ -1574,7 +1577,7 @@ function initBrand() {
       t.style.setProperty("--tp", b[k] ? `url('/assets/${encodeURIComponent(b[k])}?v=${Date.now() % 1e5}')` : "none");
       $(`[data-del-tpl="${k}"]`, row).hidden = !b[k];
     }
-    $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل", glow: "ترجمة متوهجة", single: "ترجمة كلمة كبيرة" }[b.caption_style], b.template.style !== "none" ? "قالب " + ({ cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" })[b.template.style] : b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark ? "علامة مائية" : "بدون شعار"].join(" · ");
+    $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل", glow: "ترجمة متوهجة", single: "ترجمة كلمة كبيرة" }[b.caption_style], b.template.style !== "none" ? "قالب " + ({ cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" })[b.template.style] : b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark && b.watermark_on !== false ? "علامة مائية" : "بدون شعار"].join(" · ");
   }, S.state);
 }
 
