@@ -11,14 +11,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, backup, kits, director, fonts, ingest, templates, transcribe, voice
+from . import audio, backup, kits, director, fonts, ingest, script as scripts, stock, templates, transcribe, voice
 from .env import ROOT, ffprobe
 from .jobs import STEP_LABELS
 from .pipeline import deliver_again, steps_for
 
 WEB = ROOT / "web"
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-       "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; media-src 'self' blob:; "
+       "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; "
        "connect-src 'self' https://raw.githubusercontent.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 UPLOADS = {
     "video": ({".mp4", ".mkv", ".mov", ".webm", ".m4v"}, "upload_mb"),
@@ -214,6 +214,7 @@ class App:
                 "face": bool(body.get("face", True)), "hook": bool(body.get("hook", False)), "audio": a,
                 "short_fill": bool(body.get("short_fill", False)), "review": bool(body.get("review", False)),
                 "layout": body.get("layout") if body.get("layout") in ("track", "active", "split") else "track",
+                "quality": body.get("quality") if body.get("quality") in CONFIG["quality"] else "",
                 "edit": {k: bool((body.get("edit") or {}).get(k, v)) for k, v in d["edit"].items()}}
         if a["mode"] != "original" and (a["engine"] == "gemini" or a["text"] != "same" or a["dialect"] != "original") \
                 and not self.settings.get("gemini_key"):
@@ -248,6 +249,20 @@ class App:
                 raise ValueError("ارفع الملف أولاً")
             name = str(src.get("name", fid))[:120]
             made.append(self.store.add(name, {**opts, "source": {"type": "file", "file_id": fid, "name": name}}, steps_for(opts)))
+        elif t == "topic":
+            topic = str(src.get("topic", "")).strip()[:300]
+            if not topic:
+                raise ValueError("اكتب موضوع الفيديو")
+            script = scripts.normalize(src.get("script") or {}, topic)
+            if sum(len(s["narration"].split()) for s in script["scenes"]) > 260:
+                raise ValueError("السكربت طويل · الحد الأقصى نحو 90 ثانية")
+            if a["engine"] == "gemini" and not self.settings.get("gemini_key"):
+                raise ValueError("صوت Gemini يحتاج مفتاحاً · أضفه من الإعدادات أو اختر صوت Edge")
+            fmt = "short" if opts["formats"]["short"] else "wide"
+            o = {**opts, "parts": 1, "formats": {"short": fmt == "short", "wide": fmt == "wide", "square": False, "portrait": False},
+                 "face": False, "short_fill": False, "layout": "track", "audio": {**a, "mode": "original", "text": "same"},
+                 "edit": {**{k: False for k in opts["edit"]}, "sfx": bool(opts["edit"].get("sfx", True))}}
+            made.append(self.store.add(f"فكرة: {topic[:40]}", {**o, "source": {"type": "topic", "topic": topic, "script": script}}, steps_for(o)))
         else:
             raise ValueError("مصدر غير معروف")
         self.worker.kick()
@@ -502,6 +517,8 @@ def handler(app):
                     return self._json({"settings": app.settings.public()})
                 if path == "/api/test/gemini":
                     return self._json(director.test_key(app.settings.get("gemini_key")))
+                if path == "/api/test/stock":
+                    return self._json(stock.test(app.settings))
                 if path == "/api/test/telegram":
                     from .notify import Telegram, _call
                     t = Telegram(app.settings)
@@ -516,6 +533,25 @@ def handler(app):
                         raise ValueError("خيارات غير صالحة")
                     p = voice.preview(app.settings, eng, v, d, app.env.temp)
                     return self._json({"url": f"/cache/{p.name}"})
+                if path == "/api/topic/script":
+                    topic = str(body.get("topic", "")).strip()[:300]
+                    text = str(body.get("text", "")).strip()[:3000]
+                    if text:
+                        return self._json({"script": scripts.from_text(text, topic)})
+                    secs = int(body.get("seconds") or 45)
+                    dia = str(body.get("dialect", "msa"))
+                    if not topic or secs not in (30, 45, 60):
+                        raise ValueError("اكتب فكرة الفيديو")
+                    if not app.settings.get("gemini_key"):
+                        raise ValueError("كتابة السكربت تحتاج مفتاح Gemini من الإعدادات · أو الصق سكربتك بنفسك")
+                    return self._json({"script": scripts.write(app.settings, topic, secs, dia if dia in ENUMS["dialect"] and dia != "original" else "msa")})
+                if path == "/api/trend/search":
+                    kw = str(body.get("keyword", "")).strip()[:120]
+                    flt = str(body.get("filter", "week"))
+                    if not kw or flt not in ENUMS["filter"]:
+                        raise ValueError("أدخل كلمة مفتاحية")
+                    off = max(0, min(60, int(body.get("offset") or 0)))
+                    return self._json(ingest.search_videos(kw, flt, app.settings, app.env, lambda m: None, off, 3))
                 if path.startswith("/api/template/"):
                     return self._json(self._template(path.rsplit("/", 1)[1], body))
                 if path == "/api/fonts/fetch":
@@ -568,18 +604,10 @@ def handler(app):
                                                   "style": cur["style"] if cur["style"] in templates.STYLES else spec["style"]}}})
             elif act == "ornament":
                 t = templates.tpl_conf(brand)
-                notice = None
-                try:
-                    if not st.get("gemini_key"):
-                        raise RuntimeError("no key")
-                    templates.ornament(st, t["idea"] or t["mood"] or "elegant", t, env.assets / "ornament.png")
-                    source = "ai"
-                except Exception as e:
-                    templates.geometric(t, env.assets / "ornament.png")
-                    source = "geometric"
-                    notice = (director.friendly(e, "image") if st.get("gemini_key") else "لا يوجد مفتاح Gemini") + \
-                        " · استخدمتُ زخرفة هندسية بألوان هويتك بدلاً منها."
+                source, notice = templates.make_ornament(st, t, env.assets / "ornament.png")
                 st.update({"brand": {"template": {"ornament": True}}})
+            elif act == "export":
+                st.update({"brand": templates.export_frames(env, brand, font)})
             elif act != "previews":
                 raise ValueError("إجراء غير معروف")
             out = env.temp / "tplprev"

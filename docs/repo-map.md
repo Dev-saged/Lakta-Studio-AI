@@ -18,7 +18,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - lakta/captions.py: ASS karaoke (3 styles), hook position per template
 - lakta/render.py: ffmpeg graph: crop/scale, frame or template, ass, progress bar, CTA, watermark, motion cues
 - lakta/motion.py: حلقة/توهج فخم (PNG أبيض مُعاد تلوينه + scale/fade زمنيين) عند الذروة/الافتتاحية/الأرقام — بدون geq (بطيء جداً على دقة الشورتس)
-- lakta/templates.py: template generator (Gemini spec, 4 styles, ornament, CTA)
+- lakta/stock.py: free footage search/fetch (Pexels→Pixabay→Wikimedia keyless), cache base/stock (1.5GB, not backed up), credits(); keys optional pexels_key/pixabay_key template generator (Gemini spec, 4 styles, ornament, CTA)
 - lakta/edit.py: EDL from word timings (silence/filler/stutter cuts, zoom subdivisions, cold open), remap words
 - lakta/covers.py: cover designer (face/sharpness frame pick, enhance, hero/split/pop layouts, highlight word)
 - lakta/fonts.py: static bold instancing with Arabic check, Google Fonts fetch (API, falls back to raw file names)
@@ -36,7 +36,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Templates drawn procedurally (true alpha); Gemini only designs spec and optional ornament
 - Uploaded PNG template beats generated template per format
 - Trash: soft delete (job.deleted), restore, purge; auto-purge after CONFIG trash.days (7) in Store saver
-- Quality profiles in CONFIG.quality (crf/preset/cq/maxrate/enhance); premium+shorts downloads up to 4K (VP9, mkv); cinematic = premium encode + motion cues, اختياري بالواجهة (#p-quality)
+- Quality profiles in CONFIG.quality (crf/preset/cq/maxrate/enhance); premium+shorts downloads up to 4K (VP9, mkv); cinematic = premium encode + motion cues, per job via #f-quality (job opts.quality overrides Settings quality)
 - NVENC args fall back to libx264 on failure; output tagged BT.709, GOP 60, capped bitrate
 - Covers: 3 variants per size as Cover_*_PartN_k.jpg; variant 1 overwrites Thumbnail_* (thumbs.make kept as fallback)
 - Smart edit only in original-audio mode: video uses split/trim/concat (zoom per segment), audio cuts only at real cuts
@@ -56,6 +56,12 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Batch 2: formats square/portrait (reframe.rescale of short crop, render.CROPPED); brand lower_third (director speaker → LName/LRole), bilingual (director.translate_lines → Trans style), intro/outro bumpers (render.bumper concat); publish_pack → _pub_<n>_{yt,tt,ig}.txt + _chapters.txt in zip; alt_titles chips in review
 - Batch 3: watch.py (RSS per channel, base/watch.json, every CONFIG.watch.minutes); kits.py (base/brands.json); /api/stats (+ step sec timings in Job.step); audio.analyze_music (bpm/beats/mood, music/.meta.json) + pick_music('auto' by director mood) + edit.snap_beats; original-mode music ducking; captions.ordinals → number badges (brand.motion_gfx)
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
+- Watermark: brand.watermark_on (default true) hides logo in render and templates without deleting the file; UI chip #wm-on
+- Ornament tiers (templates.make_ornament): Gemini image (retry on 503) → text model picks motif/density → PIL vector tile (star|deco|lattice) → deterministic built-in; image 429/404 never retried
+- Trend picker: POST /api/trend/search → ingest.search_videos (YouTube sp sorted by views, week/today, pages of 3); picked url submitted as a normal link job; img-src allows i.ytimg.com (meta + server CSP)
+- PNG frame generator: POST /api/template/export → templates.export_frames saves assets/frame_{short,wide}.png from the current template (no part label); brand frame_* then override the drawn template; download links #b-templates
+- Stock keys are the sole approved external API (CLAUDE.md); missing keys/failures never block: topic mode falls back to generated footage
+- Topic job (source.type=topic): server forces one format (short|wide), audio mode original, face/edit off; pipeline download=compose.build, transcribe=TTS words, direct=single full clip; selftest.run_topic covers it offline
 
 ## Solved bugs (never reintroduce)
 - Arabic captions tofu/reversed: subtitles filter + simple shaping → use ass filter, shaping=complex, Encoding=-1
@@ -67,6 +73,9 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Login failed when copying long mixed-case key on phone: 8-digit code (or LAKTA_PASSWORD secret), tolerant matching, copy buttons, lockout after 10 fails
 
 - Ornament toggle disabled without key + raw 429 toast vanishing: switch always enabled, geometric fallback, sticky copyable errors, friendly() maps Gemini errors
+- Hook title shown whole video: ASS Hook line now ends at captions.HOOK_SECONDS (4.5s) with fade; cover keeps the text
+- Topic tab (index.html source tab `data-src=topic`, `#f-topic`, `#scene-list`, `#topic-keys`; server `/api/topic/script`): form state topic/tsec/script; `.only-media` hides parts/face/edit controls; voice sheet hides mode/text for topic
+- Stock credits: pipeline `credits` (from `stock.credits`) persisted in project.json, appended to `_pub_<n>_yt/ig.txt`, written to `_credits.txt` and zipped as اعتمادات اللقطات.txt
 
 ## Open issues
 - (none) · quality, covers, smart edit, fonts delivered in 34.2–34.5

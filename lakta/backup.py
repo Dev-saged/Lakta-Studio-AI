@@ -11,7 +11,7 @@ from pathlib import Path
 from .env import secret
 
 SLUG = "lakta-studio-data"
-SKIP = {"sources", "bin", "uploads"}
+SKIP = {"sources", "bin", "uploads", "stock"}
 SKIP_FILES = {"youtube_cookies.txt", "settings.tmp", "jobs.tmp"}
 state = {"busy": False, "last": None, "error": None}
 _lock = threading.Lock()

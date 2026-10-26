@@ -32,6 +32,7 @@ def entries(env, job_id, clips):
             res.append((out / f"_pub_{n}_{k}.txt", f"{folder}/{label}.txt", n))
     if clips:
         res.append((out / "_chapters.txt", "فصول الحلقة.txt", clips[0]["n"]))
+        res.append((out / "_credits.txt", "اعتمادات اللقطات.txt", clips[0]["n"]))
     return [(p, a, n) for p, a, n in res if Path(p).exists()]
 
 

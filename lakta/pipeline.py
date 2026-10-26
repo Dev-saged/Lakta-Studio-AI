@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, backup, captions, covers, director, edit, ingest, motion, package, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, backup, captions, compose, covers, director, edit, ingest, motion, package, reframe, render, stock, templates, thumbs, transcribe, voice
 from .notify import Telegram, safe_name
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide", "square": "Square", "portrait": "Portrait"}
@@ -54,6 +54,7 @@ class Pipeline:
 
     def _run(self, job, opts, a, brand, work, out, tg, gpu, has_key):
         env, st = self.env, self.settings
+        quality = opts.get("quality") or st.get("quality")
         log, cancel = job.log, job.cancelled
         speed = max(1.0, min(1.1, float(st.get("speed") or 1.0)))
         font_file = env.fonts / brand.get("font", CONFIG["fonts"]["default"])
@@ -63,10 +64,13 @@ class Pipeline:
         job.set(voice_label=voice_label(a))
 
         proj = out / "project.json"
+        credits = []
         if job.data.get("phase") == "produce" and proj.exists():
             # إعادة إخراج أو بعد المراجعة: المصدر والتفريغ واللقطات محفوظة
             pj = json.loads(proj.read_text("utf-8"))
             src, meta, tr, clips, seo = pj["src"], pj["meta"], pj["tr"], pj["clips"], pj["seo"]
+            credits = pj.get("credits", [])
+            credits and job.set(credits=credits)
             if not Path(src["path"]).exists():
                 raise RuntimeError("الفيديو المصدر لم يعد محفوظاً · أعد الإنتاج من البداية")
             dur = meta["duration"]
@@ -82,12 +86,17 @@ class Pipeline:
             transcribe.preload(st.get("whisper"), gpu)
             job.step("download")
             src_opt = opts["source"]
-            if src_opt["type"] == "file":
+            topic = src_opt["type"] == "topic"
+            if topic:
+                src, twords, tused, tnarr = compose.build(env, st, src_opt["script"], opts, work, log, cancel, job.progress)
+                credits = stock.credits(tused)
+                job.set(credits=credits)
+            elif src_opt["type"] == "file":
                 src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
             else:
                 url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
                 # «فخم» مع الشورتس: تنزيل حتى 4K ليبقى القص العمودي حاداً
-                dl_h = 2160 if st.get("quality") in ("premium", "cinematic") and opts["formats"].get("short") else None
+                dl_h = 2160 if quality in ("premium", "cinematic") and opts["formats"].get("short") else None
                 src = ingest.download(url, work, st, env, log, job.progress, job.note, dl_h)
             meta = ingest.describe(src)
             dur = meta["duration"]
@@ -97,21 +106,27 @@ class Pipeline:
 
             # ٢) التفريغ
             job.step("transcribe")
-            wav16 = transcribe.extract_audio(src["path"], work / "a16.wav", cancel) if meta["has_audio"] else None
+            wav16 = transcribe.extract_audio(tnarr if topic else src["path"], work / "a16.wav", cancel) if topic or meta["has_audio"] else None
             if wav16:
                 job.set(peaks=transcribe.peaks(wav16))
-                tr = transcribe.transcribe(wav16, src.get("vtt"), st.get("whisper"), gpu, log, cancel, job.progress)
+                tr = ({"words": twords, "segments": transcribe.regroup(twords), "source": "tts"} if topic else
+                      transcribe.transcribe(wav16, src.get("vtt"), st.get("whisper"), gpu, log, cancel, job.progress))
             else:
                 tr = {"words": [], "segments": [], "source": "none"}
             segments = tr["segments"] if tr["source"] == "youtube" else transcribe.regroup(tr["words"])
             (out / "transcript.json").write_text(json.dumps([[w["s"], w["e"], w["w"]] for w in tr["words"]], ensure_ascii=False), "utf-8")
-            job.note(f"{len(tr['words'])} كلمة · {'Whisper' if tr['source'] == 'whisper' else 'يوتيوب'}" + (" · GPU" if gpu else ""))
+            job.note(f"{len(tr['words'])} كلمة · { {'whisper': 'Whisper', 'tts': 'صوت مولَّد'}.get(tr['source'], 'يوتيوب') }" + (" · GPU" if gpu else ""))
 
             # ٣) المونتير
             job.step("direct")
             clips, seo = None, {}
             parts = max(1, min(CONFIG["clip"]["max_parts"], int(opts["parts"])))
-            if has_key and segments:
+            if topic:
+                sc = src_opt["script"]
+                clips = [{"s": 0.0, "e": round(dur, 2), "open": None, "title": sc["title"], "hook": sc["hook"], "thumb": sc["hook"][:40], "highlight": "",
+                          "keywords": [], "punch": "", "mood": "neutral", "alt_titles": [], "speaker": {"name": "", "role": ""}, "score": 100, "reason": ""}]
+                seo = {"title": sc["title"], "thumb": sc["hook"][:40], "description": sc.get("description", ""), "hashtags": [t.lstrip("#") for t in sc.get("hashtags", [])]}
+            elif has_key and segments:
                 try:
                     clips, seo = director.pick_clips(st, segments, dur, parts, src["title"], src["description"], log)
                 except Exception as e:
@@ -125,7 +140,7 @@ class Pipeline:
             job.set(clips=_public(clips), seo=seo)
             job.note(f"{len(clips)} من {max(1, len(segments))} مقطع")
             src = _keep_source(env, job.id, src)
-            proj.write_text(json.dumps({"src": src, "meta": meta, "tr": tr, "clips": clips, "seo": seo}, ensure_ascii=False), "utf-8")
+            proj.write_text(json.dumps({"src": src, "meta": meta, "tr": tr, "clips": clips, "seo": seo, "credits": credits}, ensure_ascii=False), "utf-8")
             if opts.get("review"):
                 log("اللقطات جاهزة للمراجعة")
                 return "review"
@@ -182,7 +197,7 @@ class Pipeline:
         # ٦) الإخراج
         job.step("render")
         fmts = [f for f in FORMAT_LABEL if opts["formats"].get(f)] or ["short"]
-        wm = env.assets / brand["watermark"] if brand.get("watermark") else None
+        wm = env.assets / brand["watermark"] if brand.get("watermark") and brand.get("watermark_on", True) else None
         wm = wm if wm and wm.exists() else None
         res = int(st.get("resolution") or 1080)
         total = len(plan) * len(fmts)
@@ -229,14 +244,14 @@ class Pipeline:
                 ass = captions.build(work / f"cap_{i}_{fmt}.ass", p["words"], p["out_dur"], W, H, brand, family,
                                      c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"),
                                      extras=ex)
-                mpts = motion.cues(ex, fx, p["out_dur"]) if st.get("quality") == "cinematic" else []
+                mpts = motion.cues(ex, fx, p["out_dur"]) if quality == "cinematic" else []
                 massets = motion.assets(env.assets) if mpts else None
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
                             crop=fcrop, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
-                            progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
+                            progress=lambda x, b=base: job.progress((b + x) / total), quality=quality,
                             edl=p.get("edl"), codec=st.get("codec"),
                             look={"grade": st.get("grade"), "grain": st.get("grain"), "auto": st.get("auto_color") is not False,
                                   "src_h": meta["height"] if st.get("lowres_fix") is not False else None, "stab": stab},
@@ -245,7 +260,7 @@ class Pipeline:
                                 for k in ("intro_video", "outro_video"))
                 if intro or outro:
                     job.note(f"اللقطة {n} · فاصل القناة")
-                    render.bumper(dst, W, H, intro, outro, st.get("quality"), st.get("codec"), cancel)
+                    render.bumper(dst, W, H, intro, outro, quality, st.get("codec"), cancel)
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)
@@ -261,7 +276,7 @@ class Pipeline:
         # ٧) التغليف والإرسال
         job.step("package")
         if st.get("publish_pack") is not False:
-            _publish(st, has_key, out, clips, seo, tr, src, meta, log)
+            _publish(st, has_key, out, clips, seo, tr, src, meta, log, credits)
         # ملف مضغوط باسم المشروع: مجلد لكل جزء بأسماء عربية
         title = safe_name(seo['title'] or src['title'])
         items = package.entries(env, job.id, _public(clips))
@@ -342,7 +357,7 @@ def _translate(st, words, lang, log):
     return [(g[0]["s"], g[-1]["e"] + 0.2, t) for g, t in zip(groups, lines)]
 
 
-def _publish(st, has_key, out, clips, seo, tr, src, meta, log):
+def _publish(st, has_key, out, clips, seo, tr, src, meta, log, credits=()):
     """ملفات نشر لكل منصة لكل جزء + فصول الحلقة"""
     pack, chapters = {}, []
     if has_key:
@@ -352,17 +367,20 @@ def _publish(st, has_key, out, clips, seo, tr, src, meta, log):
         except Exception as e:
             log(f"تعذّر ملف النشر الذكي ({director.friendly(e)}) · نسخة أساسية")
     tags = seo.get("hashtags") or []
+    cr = ("\n\nاللقطات:\n" + "\n".join(credits)) if credits else ""
     for c in clips:
         k = pack.get(c["n"]) or {}
         hs = " ".join("#" + h.lstrip("#").replace(" ", "_") for h in (k.get("hashtags") or tags)[:8])
         yt = (f"{k.get('youtube_title') or c.get('full_title') or c['title']}\n\n{k.get('youtube_description') or seo.get('description', '')}\n\n"
-              f"{hs}\n\nالكلمات الدلالية: {', '.join(k.get('youtube_tags') or tags)}")
+              f"{hs}\n\nالكلمات الدلالية: {', '.join(k.get('youtube_tags') or tags)}{cr}")
         alts = c.get("alt_titles") or []
         if alts:
             yt += "\n\nعناوين بديلة:\n" + "\n".join(f"- {a}" for a in alts)
         (out / f"_pub_{c['n']}_yt.txt").write_text(yt, "utf-8-sig")
         (out / f"_pub_{c['n']}_tt.txt").write_text(f"{k.get('tiktok_caption') or c.get('hook') or c['title']}\n\n{hs}", "utf-8-sig")
-        (out / f"_pub_{c['n']}_ig.txt").write_text(f"{k.get('instagram_caption') or c['title']}\n\n{hs}", "utf-8-sig")
+        (out / f"_pub_{c['n']}_ig.txt").write_text(f"{k.get('instagram_caption') or c['title']}\n\n{hs}{cr}", "utf-8-sig")
+    if credits:
+        (out / "_credits.txt").write_text("\n".join(credits), "utf-8-sig")
     if chapters:
         (out / "_chapters.txt").write_text("\n".join(f"{_mmss(t)} {name}" for t, name in chapters), "utf-8-sig")
 
