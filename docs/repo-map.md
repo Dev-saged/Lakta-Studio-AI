@@ -59,6 +59,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Watermark: brand.watermark_on (default true) hides logo in render and templates without deleting the file; UI chip #wm-on
 - Ornament tiers (templates.make_ornament): Gemini image (retry on 503) → text model picks motif/density → PIL vector tile (star|deco|lattice) → deterministic built-in; image 429/404 never retried
 - Trend picker: POST /api/trend/search → ingest.search_videos (YouTube sp sorted by views, week/today, pages of 3); picked url submitted as a normal link job; img-src allows i.ytimg.com (meta + server CSP)
+- PNG frame generator: POST /api/template/export → templates.export_frames saves assets/frame_{short,wide}.png from the current template (no part label); brand frame_* then override the drawn template; download links #b-templates
 
 ## Solved bugs (never reintroduce)
 - Arabic captions tofu/reversed: subtitles filter + simple shaping → use ass filter, shaping=complex, Encoding=-1

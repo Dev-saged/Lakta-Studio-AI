@@ -578,6 +578,8 @@ def handler(app):
                 t = templates.tpl_conf(brand)
                 source, notice = templates.make_ornament(st, t, env.assets / "ornament.png")
                 st.update({"brand": {"template": {"ornament": True}}})
+            elif act == "export":
+                st.update({"brand": templates.export_frames(env, brand, font)})
             elif act != "previews":
                 raise ValueError("إجراء غير معروف")
             out = env.temp / "tplprev"
