@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, backup, captions, covers, director, edit, ingest, motion, package, reframe, render, templates, thumbs, transcribe, voice
+from . import audio, backup, captions, compose, covers, director, edit, ingest, motion, package, reframe, render, stock, templates, thumbs, transcribe, voice
 from .notify import Telegram, safe_name
 
 FORMAT_LABEL = {"short": "Shorts", "wide": "Wide", "square": "Square", "portrait": "Portrait"}
@@ -83,7 +83,11 @@ class Pipeline:
             transcribe.preload(st.get("whisper"), gpu)
             job.step("download")
             src_opt = opts["source"]
-            if src_opt["type"] == "file":
+            topic = src_opt["type"] == "topic"
+            if topic:
+                src, twords, tused, tnarr = compose.build(env, st, src_opt["script"], opts, work, log, cancel, job.progress)
+                job.set(credits=stock.credits(tused))
+            elif src_opt["type"] == "file":
                 src = ingest.local_file(env.uploads / src_opt["file_id"], src_opt.get("name", "video"))
             else:
                 url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
@@ -98,21 +102,27 @@ class Pipeline:
 
             # ٢) التفريغ
             job.step("transcribe")
-            wav16 = transcribe.extract_audio(src["path"], work / "a16.wav", cancel) if meta["has_audio"] else None
+            wav16 = transcribe.extract_audio(tnarr if topic else src["path"], work / "a16.wav", cancel) if topic or meta["has_audio"] else None
             if wav16:
                 job.set(peaks=transcribe.peaks(wav16))
-                tr = transcribe.transcribe(wav16, src.get("vtt"), st.get("whisper"), gpu, log, cancel, job.progress)
+                tr = ({"words": twords, "segments": transcribe.regroup(twords), "source": "tts"} if topic else
+                      transcribe.transcribe(wav16, src.get("vtt"), st.get("whisper"), gpu, log, cancel, job.progress))
             else:
                 tr = {"words": [], "segments": [], "source": "none"}
             segments = tr["segments"] if tr["source"] == "youtube" else transcribe.regroup(tr["words"])
             (out / "transcript.json").write_text(json.dumps([[w["s"], w["e"], w["w"]] for w in tr["words"]], ensure_ascii=False), "utf-8")
-            job.note(f"{len(tr['words'])} كلمة · {'Whisper' if tr['source'] == 'whisper' else 'يوتيوب'}" + (" · GPU" if gpu else ""))
+            job.note(f"{len(tr['words'])} كلمة · { {'whisper': 'Whisper', 'tts': 'صوت مولَّد'}.get(tr['source'], 'يوتيوب') }" + (" · GPU" if gpu else ""))
 
             # ٣) المونتير
             job.step("direct")
             clips, seo = None, {}
             parts = max(1, min(CONFIG["clip"]["max_parts"], int(opts["parts"])))
-            if has_key and segments:
+            if topic:
+                sc = src_opt["script"]
+                clips = [{"s": 0.0, "e": round(dur, 2), "open": None, "title": sc["title"], "hook": sc["hook"], "thumb": sc["hook"][:40], "highlight": "",
+                          "keywords": [], "punch": "", "mood": "neutral", "alt_titles": [], "speaker": {"name": "", "role": ""}, "score": 100, "reason": ""}]
+                seo = {"title": sc["title"], "thumb": sc["hook"][:40], "description": sc.get("description", ""), "hashtags": [t.lstrip("#") for t in sc.get("hashtags", [])]}
+            elif has_key and segments:
                 try:
                     clips, seo = director.pick_clips(st, segments, dur, parts, src["title"], src["description"], log)
                 except Exception as e:

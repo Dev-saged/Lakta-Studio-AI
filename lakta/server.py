@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, backup, kits, director, fonts, ingest, stock, templates, transcribe, voice
+from . import audio, backup, kits, director, fonts, ingest, script as scripts, stock, templates, transcribe, voice
 from .env import ROOT, ffprobe
 from .jobs import STEP_LABELS
 from .pipeline import deliver_again, steps_for
@@ -249,6 +249,20 @@ class App:
                 raise ValueError("ارفع الملف أولاً")
             name = str(src.get("name", fid))[:120]
             made.append(self.store.add(name, {**opts, "source": {"type": "file", "file_id": fid, "name": name}}, steps_for(opts)))
+        elif t == "topic":
+            topic = str(src.get("topic", "")).strip()[:300]
+            if not topic:
+                raise ValueError("اكتب موضوع الفيديو")
+            script = scripts.normalize(src.get("script") or {}, topic)
+            if sum(len(s["narration"].split()) for s in script["scenes"]) > 260:
+                raise ValueError("السكربت طويل · الحد الأقصى نحو 90 ثانية")
+            if a["engine"] == "gemini" and not self.settings.get("gemini_key"):
+                raise ValueError("صوت Gemini يحتاج مفتاحاً · أضفه من الإعدادات أو اختر صوت Edge")
+            fmt = "short" if opts["formats"]["short"] else "wide"
+            o = {**opts, "parts": 1, "formats": {"short": fmt == "short", "wide": fmt == "wide", "square": False, "portrait": False},
+                 "face": False, "short_fill": False, "layout": "track", "audio": {**a, "mode": "original", "text": "same"},
+                 "edit": {**{k: False for k in opts["edit"]}, "sfx": bool(opts["edit"].get("sfx", True))}}
+            made.append(self.store.add(f"فكرة: {topic[:40]}", {**o, "source": {"type": "topic", "topic": topic, "script": script}}, steps_for(o)))
         else:
             raise ValueError("مصدر غير معروف")
         self.worker.kick()
