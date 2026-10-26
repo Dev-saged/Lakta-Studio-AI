@@ -535,6 +535,9 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         </div>
         <div class="field" id="layout-field"><span class="lbl">المتكلمون في الشورتس</span>
           <div class="seg sm" id="f-layout"><button type="button" data-v="track">متكلم واحد</button><button type="button" data-v="active">المتكلم النشط</button><button type="button" data-v="split">شاشة مقسومة</button></div></div>
+        <div class="field"><span class="lbl">جودة هذا الفيديو</span>
+          <div class="seg sm" id="f-quality" role="group" aria-label="جودة هذا الفيديو"><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button><button type="button" data-v="cinematic">موشن فخم</button></div>
+          <span class="sub" id="f-quality-hint"></span></div>
         <div class="field"><span class="lbl">المونتاج الذكي · مع الصوت الأصلي</span>
           <div class="chips" role="group" aria-label="المونتاج الذكي">
             <button type="button" class="chip" data-edit="silence"><svg class="ic"><use href="#i-scissors"/></svg>حذف الصمت والتأتأة</button>
@@ -746,7 +749,7 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
       <section class="card" style="--i:4">
         <h2 class="h2"><svg class="ic"><use href="#i-scissors"/></svg>المعالجة</h2>
         <div class="field"><span class="lbl">دقة التفريغ (Whisper)</span><div class="seg sm" id="p-whisper"><button type="button" data-v="fast">سريع</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="best">أعلى دقة</button></div></div>
-        <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button><button type="button" data-v="cinematic">موشن فخم</button></div>
+        <div class="field"><span class="lbl">جودة الإخراج</span><div class="seg sm" id="p-quality"><button type="button" data-v="compact">مضغوط</button><button type="button" data-v="balanced">متوازن</button><button type="button" data-v="premium">فخم</button></div>
           <span class="sub" id="p-quality-hint"></span></div>
         <div class="field"><span class="lbl">تلوين الفيديو</span><div class="seg sm" id="p-grade"><button type="button" data-v="none">بدون</button><button type="button" data-v="cinema">سينمائي</button><button type="button" data-v="warm">دافئ</button><button type="button" data-v="cool">بارد</button><button type="button" data-v="vivid">حيوي</button></div></div>
         <div class="row"><div><b>حبيبات فيلم خفيفة</b><small>ملمس سينمائي ناعم</small></div><input type="checkbox" class="sw" id="p-grain" aria-label="حبيبات فيلم"></div>
@@ -988,7 +991,7 @@ function bindGroup(root, get, set, attr = "data-v") {
 function defaultForm(st) {
   const d = st.defaults;
   return { src: "links", links: "", keyword: "", filter: "today", file: null, parts: d.parts, formats: { ...d.formats },
-           face: d.face, hook: d.hook, short_fill: d.short_fill, review: !!d.review, layout: d.layout || "track", audio: { ...d.audio }, edit: { ...d.edit } };
+           face: d.face, hook: d.hook, short_fill: d.short_fill, review: !!d.review, layout: d.layout || "track", quality: "", audio: { ...d.audio }, edit: { ...d.edit } };
 }
 function setForm(patch) { const f = { ...S.form(), ...patch }; S.form.set(f); store.set(CONFIG.draftKey, { ...f, file: null }); }
 function setAudio(patch) { setForm({ audio: { ...S.form().audio, ...patch } }); }
@@ -1000,6 +1003,9 @@ function initStudio() {
   const paintFilter = bindGroup("#f-filter", () => F().filter, v => setForm({ filter: v }));
   const paintParts = bindGroup("#f-parts", () => F().parts, v => setForm({ parts: +v }));
   const paintLayout = bindGroup("#f-layout", () => F().layout || "track", v => setForm({ layout: v }));
+  const FQH = { balanced: "", premium: "أعلى وضوح · ينزّل حتى 4K عند الشورتس", cinematic: "حلقات وتوهّج متحرك عند الذروة والافتتاحية والأرقام" };
+  const curQ = () => F().quality || S.state().settings.quality || "balanced";
+  const paintQ = bindGroup("#f-quality", curQ, v => setForm({ quality: v }));
   $$("[data-opt]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.opt;
     if (FMTS.includes(k)) setForm({ formats: { ...F().formats, [k]: !F().formats[k] } }); else setForm({ [k]: !F()[k] });
@@ -1019,6 +1025,7 @@ function initStudio() {
     paintSrc(); paintFilter(); paintParts();
     $$("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== f.src);
     $$("[data-edit]").forEach(b => { b.setAttribute("aria-pressed", String(!!f.edit[b.dataset.edit])); b.disabled = f.audio.mode !== "original" && !["sfx", "scenes"].includes(b.dataset.edit); });
+    paintQ(); $("#f-quality-hint").textContent = FQH[curQ()] || "";
     paintLayout(); $("#layout-field").hidden = !f.face || !f.formats.short || f.short_fill;
     $$("[data-opt]").forEach(b => { const k = b.dataset.opt; b.setAttribute("aria-pressed", String(FMTS.includes(k) ? !!f.formats[k] : !!f[k])); });
     if ($("#f-links").value !== f.links) $("#f-links").value = f.links;
@@ -1034,7 +1041,7 @@ function initStudio() {
   $("#job-form").addEventListener("submit", async e => {
     e.preventDefault();
     const f = F(), btn = $("#start");
-    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, review: !!f.review, layout: f.layout || "track", audio: f.audio, edit: f.edit };
+    const body = { parts: f.parts, formats: f.formats, face: f.face, hook: f.hook, short_fill: f.short_fill, review: !!f.review, layout: f.layout || "track", quality: f.quality || "", audio: f.audio, edit: f.edit };
     try {
       if (f.src === "links") { if (!f.links.trim()) throw new Error("الصق رابطاً واحداً على الأقل"); body.source = { type: "links", links: f.links }; }
       else if (f.src === "trend") { if (!f.keyword.trim()) throw new Error("اكتب كلمة مفتاحية"); body.source = { type: "trend", keyword: f.keyword, filter: f.filter }; }

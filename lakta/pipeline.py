@@ -54,6 +54,7 @@ class Pipeline:
 
     def _run(self, job, opts, a, brand, work, out, tg, gpu, has_key):
         env, st = self.env, self.settings
+        quality = opts.get("quality") or st.get("quality")
         log, cancel = job.log, job.cancelled
         speed = max(1.0, min(1.1, float(st.get("speed") or 1.0)))
         font_file = env.fonts / brand.get("font", CONFIG["fonts"]["default"])
@@ -87,7 +88,7 @@ class Pipeline:
             else:
                 url = src_opt["url"] if src_opt["type"] == "link" else ingest.find_trend(src_opt["keyword"], src_opt.get("filter"), st, env, log)
                 # «فخم» مع الشورتس: تنزيل حتى 4K ليبقى القص العمودي حاداً
-                dl_h = 2160 if st.get("quality") in ("premium", "cinematic") and opts["formats"].get("short") else None
+                dl_h = 2160 if quality in ("premium", "cinematic") and opts["formats"].get("short") else None
                 src = ingest.download(url, work, st, env, log, job.progress, job.note, dl_h)
             meta = ingest.describe(src)
             dur = meta["duration"]
@@ -229,14 +230,14 @@ class Pipeline:
                 ass = captions.build(work / f"cap_{i}_{fmt}.ass", p["words"], p["out_dur"], W, H, brand, family,
                                      c["hook"] if opts.get("hook") else None, keywords=c.get("keywords"),
                                      extras=ex)
-                mpts = motion.cues(ex, fx, p["out_dur"]) if st.get("quality") == "cinematic" else []
+                mpts = motion.cues(ex, fx, p["out_dur"]) if quality == "cinematic" else []
                 massets = motion.assets(env.assets) if mpts else None
                 dst = out / f"{FORMAT_LABEL[fmt]}_Part{n}.mp4"
                 base = done
                 render.clip(src["path"], dst, fmt, res, p["s"], p["dur_src"], p["out_dur"], speed, mix, ass, env.fonts, brand, wm,
                             crop=fcrop, work=work, cancel=cancel, template=_template(env, brand, fmt),
                             tpl=None if _template(env, brand, fmt) else templates.build(env, brand, fmt, W, H, n, font_file, work),
-                            progress=lambda x, b=base: job.progress((b + x) / total), quality=st.get("quality"),
+                            progress=lambda x, b=base: job.progress((b + x) / total), quality=quality,
                             edl=p.get("edl"), codec=st.get("codec"),
                             look={"grade": st.get("grade"), "grain": st.get("grain"), "auto": st.get("auto_color") is not False,
                                   "src_h": meta["height"] if st.get("lowres_fix") is not False else None, "stab": stab},
@@ -245,7 +246,7 @@ class Pipeline:
                                 for k in ("intro_video", "outro_video"))
                 if intro or outro:
                     job.note(f"اللقطة {n} · فاصل القناة")
-                    render.bumper(dst, W, H, intro, outro, st.get("quality"), st.get("codec"), cancel)
+                    render.bumper(dst, W, H, intro, outro, quality, st.get("codec"), cancel)
                 c["files"][fmt] = f"{job.id}/{dst.name}"
                 done += 1
             part = thumbs.part_word(n)
