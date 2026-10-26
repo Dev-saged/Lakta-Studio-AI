@@ -56,6 +56,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Batch 2: formats square/portrait (reframe.rescale of short crop, render.CROPPED); brand lower_third (director speaker → LName/LRole), bilingual (director.translate_lines → Trans style), intro/outro bumpers (render.bumper concat); publish_pack → _pub_<n>_{yt,tt,ig}.txt + _chapters.txt in zip; alt_titles chips in review
 - Batch 3: watch.py (RSS per channel, base/watch.json, every CONFIG.watch.minutes); kits.py (base/brands.json); /api/stats (+ step sec timings in Job.step); audio.analyze_music (bpm/beats/mood, music/.meta.json) + pick_music('auto' by director mood) + edit.snap_beats; original-mode music ducking; captions.ordinals → number badges (brand.motion_gfx)
 - SSE uses chunked encoding + client polls /api/jobs when silent >20s (tunnels may hold streams)
+- Watermark: brand.watermark_on (default true) hides logo in render and templates without deleting the file; UI chip #wm-on
 
 ## Solved bugs (never reintroduce)
 - Arabic captions tofu/reversed: subtitles filter + simple shaping → use ass filter, shaping=complex, Encoding=-1

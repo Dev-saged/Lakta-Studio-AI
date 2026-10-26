@@ -304,7 +304,7 @@ def build(env, brand, fmt, W, H, part, font_path, work):
     style = t["style"]
     if style not in STYLES:
         return None
-    logo = env.assets / brand["watermark"] if brand.get("watermark") else None
+    logo = env.assets / brand["watermark"] if brand.get("watermark") and brand.get("watermark_on", True) else None
     orn = env.assets / "ornament.png"
     img, track = static(style, W, H, t, font_path, part, logo if logo and logo.exists() else None, orn if orn.exists() else None)
     p = work / f"tpl_{fmt}_{part}.png"
@@ -316,7 +316,7 @@ def build(env, brand, fmt, W, H, part, font_path, work):
 def previews(env, brand, font_path, out_dir, scale=0.4):
     """صور معاينة للأنماط الأربعة + نسخة عريضة للنمط المختار"""
     t = tpl_conf(brand)
-    logo = env.assets / brand["watermark"] if brand.get("watermark") else None
+    logo = env.assets / brand["watermark"] if brand.get("watermark") and brand.get("watermark_on", True) else None
     orn = env.assets / "ornament.png"
     res = {}
     for style, (W, H) in [(s, (1080, 1920)) for s in STYLES] + [(t["style"] if t["style"] in STYLES else "cinema", (1920, 1080))]:
