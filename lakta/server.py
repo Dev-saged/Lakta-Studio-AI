@@ -214,6 +214,7 @@ class App:
                 "face": bool(body.get("face", True)), "hook": bool(body.get("hook", False)), "audio": a,
                 "short_fill": bool(body.get("short_fill", False)), "review": bool(body.get("review", False)),
                 "layout": body.get("layout") if body.get("layout") in ("track", "active", "split") else "track",
+                "quality": body.get("quality") if body.get("quality") in CONFIG["quality"] else "",
                 "edit": {k: bool((body.get("edit") or {}).get(k, v)) for k, v in d["edit"].items()}}
         if a["mode"] != "original" and (a["engine"] == "gemini" or a["text"] != "same" or a["dialect"] != "original") \
                 and not self.settings.get("gemini_key"):
