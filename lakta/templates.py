@@ -176,6 +176,21 @@ def ornament(settings, idea, t, out_path):
     raise RuntimeError("لم يُرجع النموذج صورة")
 
 
+def export_frames(env, brand, font_path):
+    """يحفظ القالب الحالي كـPNG شفاف لكل مقاس ليُنزَّل ويُستخدم بدل المولَّد"""
+    t = tpl_conf(brand)
+    if t["style"] not in STYLES:
+        raise ValueError("اختر نمطاً للقالب أولاً")
+    logo = env.assets / brand["watermark"] if brand.get("watermark") and brand.get("watermark_on", True) else None
+    orn = env.assets / "ornament.png"
+    out = {}
+    for key, (W, H) in (("frame_short", (1080, 1920)), ("frame_wide", (1920, 1080))):
+        img, _ = static(t["style"], W, H, t, font_path, None, logo if logo and logo.exists() else None, orn if orn.exists() else None)
+        img.save(env.assets / f"{key}.png")
+        out[key] = f"{key}.png"
+    return out
+
+
 # ===== الرسم =====
 class Canvas:
     def __init__(self, W, H, font_path):

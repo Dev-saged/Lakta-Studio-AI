@@ -711,11 +711,15 @@ details.log pre{margin:0;max-height:220px;overflow:auto;font:400 11px/1.6 var(--
         <div class="list" id="b-templates">
           <div class="row" data-tpl="frame_short"><span class="tpl short"></span><div><b>قالب الشورتس</b><small>PNG شفاف · 1080×1920</small></div>
             <label class="icb" for="up-frame_short" aria-label="رفع قالب الشورتس"><svg class="ic"><use href="#i-upload"/></svg><input type="file" id="up-frame_short" accept=".png" hidden></label>
+            <a class="icb" data-dl-tpl="frame_short" download="frame_short.png" aria-label="تنزيل قالب الشورتس" hidden><svg class="ic"><use href="#i-download"/></svg></a>
             <button type="button" class="icb" data-del-tpl="frame_short" aria-label="إزالة قالب الشورتس" hidden><svg class="ic"><use href="#i-trash"/></svg></button></div>
           <div class="row" data-tpl="frame_wide"><span class="tpl wide"></span><div><b>قالب العريض</b><small>PNG شفاف · 1920×1080</small></div>
             <label class="icb" for="up-frame_wide" aria-label="رفع قالب العريض"><svg class="ic"><use href="#i-upload"/></svg><input type="file" id="up-frame_wide" accept=".png" hidden></label>
+            <a class="icb" data-dl-tpl="frame_wide" download="frame_wide.png" aria-label="تنزيل قالب العريض" hidden><svg class="ic"><use href="#i-download"/></svg></a>
             <button type="button" class="icb" data-del-tpl="frame_wide" aria-label="إزالة قالب العريض" hidden><svg class="ic"><use href="#i-trash"/></svg></button></div>
         </div>
+        <div class="acts"><button type="button" class="btn ghost" id="frame-gen"><svg class="ic"><use href="#i-spark"/></svg>ولّد قالب PNG من هويتي</button></div>
+        <span class="sub">يرسم قالبك الحالي (النمط والألوان والمعرّف) كملف PNG شفاف للشورتس والعريض، تنزّله وتعدّله وترفعه من جديد</span>
       </section>
       <section class="card" style="--i:3">
         <h2 class="h2">العلامة المائية</h2>
@@ -1613,6 +1617,7 @@ function initBrand() {
       const t = $(".tpl", row); t.classList.toggle("on", !!b[k]);
       t.style.setProperty("--tp", b[k] ? `url('/assets/${encodeURIComponent(b[k])}?v=${Date.now() % 1e5}')` : "none");
       $(`[data-del-tpl="${k}"]`, row).hidden = !b[k];
+      const dl = $(`[data-dl-tpl="${k}"]`, row); dl.hidden = !b[k]; if (b[k]) dl.href = `/assets/${encodeURIComponent(b[k])}`;
     }
     $("#brand-sum").textContent = [{ classic: "ترجمة أصفر كلاسيكي", cobalt: "ترجمة صندوق كوبالت", marker: "ترجمة قلم تظليل", glow: "ترجمة متوهجة", single: "ترجمة كلمة كبيرة" }[b.caption_style], b.template.style !== "none" ? "قالب " + ({ cinema: "سينمائي", bar: "الشريط العلوي", corners: "الزوايا", poster: "الملصق" })[b.template.style] : b.frame_on ? "إطار ملوّن" : "بدون إطار", b.watermark && b.watermark_on !== false ? "علامة مائية" : "بدون شعار"].join(" · ");
   }, S.state);
@@ -1627,6 +1632,11 @@ function initTemplates() {
     try { const r = await api("/api/template/previews", {}); applyTpl(r); } catch (e) { fail(e); }
     finally { card.classList.remove("busy"); }
   }, 500);
+  $("#frame-gen").addEventListener("click", async e => {
+    const btn = e.currentTarget; btn.disabled = true;
+    try { const r = await api("/api/template/export", {}); applyTpl(r); toast("حُفظ القالب كـPNG للشورتس والعريض · أزله لتعود للقالب المولَّد"); }
+    catch (err) { fail(err); } finally { btn.disabled = false; }
+  });
   const applyTpl = r => { S.state.set({ ...S.state(), settings: r.settings }); tplPrev = r.previews; paintPrev(); };
   let tplPrev = {};
   const setTpl = async patch => {
