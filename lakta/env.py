@@ -73,7 +73,7 @@ class Env:
 
 
 # ===== الأسرار: الإعدادات ← متغيرات البيئة ← Kaggle Secrets ← Colab =====
-SECRET_ENV = {"gemini_key": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "telegram_token": ("TELEGRAM_TOKEN",),
+SECRET_ENV = {"gemini_key": ("GEMINI_API_KEY", "GOOGLE_API_KEY"), "pexels_key": ("PEXELS_API_KEY",), "pixabay_key": ("PIXABAY_API_KEY",), "telegram_token": ("TELEGRAM_TOKEN",),
               "telegram_chat": ("TELEGRAM_CHAT_ID",), "youtube_cookies": ("YOUTUBE_COOKIES",),
               "lakta_password": ("LAKTA_PASSWORD",), "relay_url": ("LAKTA_RELAY_URL",), "relay_token": ("LAKTA_RELAY_TOKEN",),
               "kaggle_username": ("KAGGLE_USERNAME",), "kaggle_key": ("KAGGLE_KEY",)}
@@ -109,7 +109,7 @@ def secret(name):
 
 
 class Settings:
-    SECRETS = ("gemini_key", "telegram_token", "telegram_chat")
+    SECRETS = ("gemini_key", "telegram_token", "telegram_chat", "pexels_key", "pixabay_key")
 
     def __init__(self, env):
         self.path = env.base / "settings.json"

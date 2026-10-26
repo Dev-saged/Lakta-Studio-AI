@@ -18,7 +18,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - lakta/captions.py: ASS karaoke (3 styles), hook position per template
 - lakta/render.py: ffmpeg graph: crop/scale, frame or template, ass, progress bar, CTA, watermark, motion cues
 - lakta/motion.py: حلقة/توهج فخم (PNG أبيض مُعاد تلوينه + scale/fade زمنيين) عند الذروة/الافتتاحية/الأرقام — بدون geq (بطيء جداً على دقة الشورتس)
-- lakta/templates.py: template generator (Gemini spec, 4 styles, ornament, CTA)
+- lakta/stock.py: free footage search/fetch (Pexels→Pixabay→Wikimedia keyless), cache base/stock (1.5GB, not backed up), credits(); keys optional pexels_key/pixabay_key template generator (Gemini spec, 4 styles, ornament, CTA)
 - lakta/edit.py: EDL from word timings (silence/filler/stutter cuts, zoom subdivisions, cold open), remap words
 - lakta/covers.py: cover designer (face/sharpness frame pick, enhance, hero/split/pop layouts, highlight word)
 - lakta/fonts.py: static bold instancing with Arabic check, Google Fonts fetch (API, falls back to raw file names)
@@ -60,6 +60,7 @@ Keep under 5KB. No code. Update by 2 lines after every change.
 - Ornament tiers (templates.make_ornament): Gemini image (retry on 503) → text model picks motif/density → PIL vector tile (star|deco|lattice) → deterministic built-in; image 429/404 never retried
 - Trend picker: POST /api/trend/search → ingest.search_videos (YouTube sp sorted by views, week/today, pages of 3); picked url submitted as a normal link job; img-src allows i.ytimg.com (meta + server CSP)
 - PNG frame generator: POST /api/template/export → templates.export_frames saves assets/frame_{short,wide}.png from the current template (no part label); brand frame_* then override the drawn template; download links #b-templates
+- Stock keys are the sole approved external API (CLAUDE.md); missing keys/failures never block: topic mode falls back to generated footage
 
 ## Solved bugs (never reintroduce)
 - Arabic captions tofu/reversed: subtitles filter + simple shaping → use ass filter, shaping=complex, Encoding=-1

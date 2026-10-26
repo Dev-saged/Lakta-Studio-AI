@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from config import CONFIG
-from . import audio, backup, kits, director, fonts, ingest, templates, transcribe, voice
+from . import audio, backup, kits, director, fonts, ingest, stock, templates, transcribe, voice
 from .env import ROOT, ffprobe
 from .jobs import STEP_LABELS
 from .pipeline import deliver_again, steps_for
@@ -503,6 +503,8 @@ def handler(app):
                     return self._json({"settings": app.settings.public()})
                 if path == "/api/test/gemini":
                     return self._json(director.test_key(app.settings.get("gemini_key")))
+                if path == "/api/test/stock":
+                    return self._json(stock.test(app.settings))
                 if path == "/api/test/telegram":
                     from .notify import Telegram, _call
                     t = Telegram(app.settings)
